@@ -1,11 +1,13 @@
 rules_version = '2';
 
-// 포근펫 챗봇 Firestore 보안 규칙
+// 포근펫 챗봇 Firestore 보안 규칙 (무료 Spark 요금제용, 서버 함수 없이 동작)
 // - 관리자: admins/{로그인한 사람의 UID} 문서가 있는 Google 계정
 // - 상품·재고: 누구나 읽기, 관리자만 고치기
-// - 주문·배송: 관리자만 직접 읽기. 고객은 서버(/api/lookup)를 거쳐 개인정보를 가린 결과만 받음
+// - 주문·배송 원본: 관리자만
+// - lookup: 주문번호·운송장으로 조회할 때 쓰는 공개 사본 (주문자 이름은 가리고 연락처는 없음).
+//           문서 하나씩 조회(get)만 가능하고 목록 보기(list)는 막음
 // - 대화 기록: 누구나 새 기록 추가만 가능, 읽기·고치기·지우기는 관리자만
-// - 피드백: 관리자만
+// - 피드백, Claude API 키(secrets): 관리자만
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
@@ -33,6 +35,11 @@ service cloud.firestore {
     match /shipments/{id} {
       allow read, write: if isAdmin();
     }
+    match /lookup/{id} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
 
     match /logs/{id} {
       allow create: if request.resource.data.keys().hasOnly(['sessionId', 'idx', 'role', 'text', 'kind', 'ms', 'guides', 'at'])
@@ -47,6 +54,9 @@ service cloud.firestore {
     }
 
     match /feedback/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /secrets/{id} {
       allow read, write: if isAdmin();
     }
 

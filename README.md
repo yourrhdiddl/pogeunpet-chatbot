@@ -20,33 +20,34 @@ public/            배포되는 화면
   index.html       포근펫 상담 챗봇
   tabs.html        탭별 챗봇 실습 (UI만 / 자유 대화 / 쇼핑몰 / 노래 추천)
   flowcharts.html  챗봇 답변 흐름도
-functions/         Firebase 서버 함수 (AI 상담 중계 /api/chat, 주문 조회 /api/lookup)
+functions/         Blaze 요금제용 서버 함수 (지금은 배포하지 않음)
 firestore.rules    Firestore 보안 규칙
 serve.cjs          로컬 테스트 서버 (피드백 저장, AI 요청 중계)
 docs/reports/      테스트 보고서 (HTML, PDF, 화면 캡처)
 ```
 
-## 배포 (Firebase)
+## 배포 (Firebase, 무료 Spark 요금제)
 
 배포 주소: https://pogeunpet-chatbot.web.app
+
+결제 수단 없이 동작하도록 서버 함수 없이 Hosting과 Firestore만 씁니다.
 
 | 데이터 | 저장 위치 | 누가 읽고 쓰나 |
 | --- | --- | --- |
 | 상품·재고 | Firestore `products`, `inventory` | 누구나 읽기, 관리자만 수정 |
-| 주문·배송 | Firestore `orders`, `shipments` | 관리자만. 고객은 `/api/lookup`으로 이름을 가린 결과만 받음 |
+| 주문·배송 원본 | Firestore `orders`, `shipments` | 관리자만 |
+| 조회용 공개 사본 | Firestore `lookup` (`ORD-1003`, `T-운송장번호`) | 누구나 문서 1개씩만 조회, 목록 보기는 막힘. 주문자 이름은 가리고 연락처는 넣지 않음. 관리자가 주문·배송을 고치면 자동으로 다시 만들어짐 |
 | 대화 기록 | Firestore `logs` | 고객은 추가만, 관리자만 읽기 |
-| 피드백·지침 | Firestore `feedback` | 관리자만. AI 요청마다 서버가 지침으로 붙임 |
-| Claude API 키 | Secret Manager `ANTHROPIC_API_KEY` | 서버 함수만 사용 (브라우저에 전달되지 않음) |
+| 피드백·지침 | Firestore `feedback` | 관리자만 |
+| Claude API 키 | Firestore `secrets/claude` | 관리자만 읽기·쓰기 |
 
-### 처음 한 번 설정
+**무료 요금제의 한계**: 키를 숨긴 채 모든 고객이 AI를 쓰려면 키를 대신 들고 호출해 줄 서버가 필요하고, Firebase에서는 그 서버(Cloud Functions)가 유료입니다. 그래서 AI 답변은 **로그인한 관리자에게만** 켜지고, 고객 질문은 주문·운송장 조회, 상품 검색, 추천, 배송·교환 안내로 답합니다. `functions/` 폴더는 나중에 Blaze 요금제로 바꿀 때 쓸 서버 코드입니다(지금은 배포하지 않음).
 
-1. **Blaze 요금제**: 서버 함수(Cloud Functions)는 Blaze(종량제)에서만 동작합니다. [사용량 및 결제](https://console.firebase.google.com/project/pogeunpet-chatbot/usage/details)에서 업그레이드하고, 예산 알림을 걸어 두는 것을 권장합니다.
-2. **API 키 보관**: 아래 명령을 실행하고 Claude API 키를 붙여 넣습니다. 입력한 키는 화면에 보이지 않고 Secret Manager에만 저장됩니다.
-   ```bash
-   npx -y firebase-tools functions:secrets:set ANTHROPIC_API_KEY --project pogeunpet-chatbot
-   ```
-3. **Google 로그인 켜기**: [Authentication › 로그인 방법](https://console.firebase.google.com/project/pogeunpet-chatbot/authentication/providers)에서 Google을 사용 설정합니다.
-4. **관리자 등록**: 배포 주소에서 `Ctrl+Shift+A` → Google 로그인 → 화면에 나온 UID를 복사해, Firestore 콘솔에서 `admins` 컬렉션에 그 UID를 문서 ID로 하는 문서를 만듭니다.
+### 처음 한 번 설정 (모두 무료)
+
+1. **Google 로그인 켜기**: [Authentication › 로그인 방법](https://console.firebase.google.com/project/pogeunpet-chatbot/authentication/providers)에서 Google을 사용 설정합니다.
+2. **관리자 등록**: 배포 주소에서 `Ctrl+Shift+A` → Google 로그인 → 화면에 나온 UID를 복사해, [Firestore 콘솔](https://console.firebase.google.com/project/pogeunpet-chatbot/firestore)에서 `admins` 컬렉션에 그 UID를 문서 ID로 하는 문서를 만듭니다(필드는 비워도 됨).
+3. **API 키 (선택)**: 관리자 화면 위쪽 Claude API 키 칸에 넣고 저장합니다. 관리자 계정에서만 AI 답변이 켜집니다.
 
 ### 배포 명령
 
@@ -54,7 +55,7 @@ docs/reports/      테스트 보고서 (HTML, PDF, 화면 캡처)
 npx -y firebase-tools deploy --project pogeunpet-chatbot
 ```
 
-화면만 바꿨을 때는 `--only hosting`, 서버 함수만 바꿨을 때는 `--only functions`, 보안 규칙만 바꿨을 때는 `--only firestore:rules`를 붙입니다.
+화면만 바꿨을 때는 `--only hosting`, 보안 규칙만 바꿨을 때는 `--only firestore:rules`를 붙입니다.
 
 ## 로컬에서 실행
 
