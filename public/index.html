@@ -384,10 +384,32 @@ const LOG_KEY = "pogeunpet.logs.v1", FB_KEY = "pogeunpet.feedback.v1";
 const memStore = {};   // localStorage를 쓸 수 없는 환경에서는 이 페이지가 열려 있는 동안만 보관
 const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return memStore[k] ?? d; } };
 const lsSet = (k, v) => { memStore[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
-const SESSION_ID = "C" + Date.now().toString(36);
+const SESSION_ID = "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 let logOn = false;
+
+/* ---------- Firebase 모드: 배포된 주소(web.app / firebaseapp.com)에서 열렸을 때 ----------
+   상점 데이터·대화 기록·피드백을 Firestore에 저장하고, AI·주문 조회는 서버(Cloud Functions)를 거침 */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBAgLVnCLIL2d6SZ-SC0uXzBsN6HiBgt2Y",
+  authDomain: "pogeunpet-chatbot.firebaseapp.com",
+  projectId: "pogeunpet-chatbot",
+  storageBucket: "pogeunpet-chatbot.firebasestorage.app",
+  messagingSenderId: "632185809723",
+  appId: "1:632185809723:web:8761bbf9380f7414faa51e",
+};
+const FB_MODE = /\.web\.app$|\.firebaseapp\.com$/.test(location.hostname) || new URLSearchParams(location.search).has("firebase");
+const fb = { ready: false, isAdmin: false, logsCache: [] };   // SDK 함수와 상태를 담는 곳
+let logIdx = 0;
 function logMsg(role, text, extra = {}) {
   if (!logOn || !text) return;
+  if (fb.ready) {   // Firestore에도 남김 (고객은 '추가'만 가능, 읽기는 관리자만)
+    const { addDoc, collection, serverTimestamp } = fb.sdk;
+    const doc = { sessionId: SESSION_ID, idx: logIdx++, role, text: String(text).slice(0, 4000), at: serverTimestamp() };
+    if (extra.kind) doc.kind = extra.kind;
+    if (Number.isFinite(extra.ms)) doc.ms = Math.round(extra.ms);
+    if (Number.isFinite(extra.guides)) doc.guides = extra.guides;
+    addDoc(collection(fb.db, "logs"), doc).catch((e) => console.warn("대화 기록 저장 실패", e?.code));
+  }
   const logs = lsGet(LOG_KEY, []);
   let s = logs.find((x) => x.id === SESSION_ID);
   if (!s) { s = { id: SESSION_ID, startedAt: new Date().toISOString(), messages: [] }; logs.push(s); }
@@ -405,6 +427,7 @@ async function fbRequest(method, url, body) {
   return fbCache;
 }
 async function deleteFeedback(id) {
+  if (fb.ready) return fb.sdk.deleteDoc(fb.sdk.doc(fb.db, "feedback", id));
   if (server) return fbRequest("DELETE", "/api/feedback/" + encodeURIComponent(id));
   lsSet(FB_KEY, getFeedback().filter((x) => x.id !== id));
 }
@@ -535,11 +558,24 @@ function picks(options, onPick) {
 }
 
 // --- 데이터로 바로 답하기 (AI 안 거침) ---
-function instantAnswer(text) {
+// Firebase 모드의 고객: 주문·배송 데이터를 직접 읽을 수 없어 서버에 조회 (주문자 이름은 가려서 옴)
+async function cloudLookup(query) {
+  try {
+    const r = await fetch("/api/lookup?" + query, { cache: "no-store" });
+    if (!r.ok) return false;
+    const { order, shipment } = await r.json();
+    if (order) { const { id, ...rest } = order; data.orders[id] = rest; }
+    if (shipment) { const { id, ...rest } = shipment; data.shipments[id] = rest; }
+    return true;
+  } catch { return false; }
+}
+async function instantAnswer(text) {
   const t0 = performance.now();
   const ord = text.match(/ORD-?\s?(\d{4})/i);
+  const needCloud = fb.ready && !fb.isAdmin;
   if (ord) {
     const id = "ORD-" + ord[1];
+    if (needCloud && !data.orders[id]) await cloudLookup("order=" + encodeURIComponent(id));
     if (data.orders[id]) { const o = data.orders[id]; botData(orderCard(id), t0, `${id} 주문은 ${o.status} 상태예요.`); }
     else {
       // 안내한 내용을 대화 기록에도 남겨야 AI가 '답 안 한 질문'으로 오해하지 않음
@@ -550,6 +586,8 @@ function instantAnswer(text) {
   }
   const digits = text.replace(/[^0-9]/g, "");
   if (digits.length >= 10) {
+    const known = () => Object.values(data.shipments).some((s) => String(s.trackingNo || "").replace(/[^0-9]/g, "") === digits);
+    if (needCloud && !known()) await cloudLookup("tracking=" + digits);
     const hit = Object.entries(data.shipments).find(([, s]) => String(s.trackingNo || "").replace(/[^0-9]/g, "") === digits);
     if (hit) { botData(shipmentCard(hit[0]), t0, `운송장 ${hit[1].trackingNo}은 ${hit[1].status} 상태예요.`); return true; }
   }
@@ -710,7 +748,7 @@ async function send(text) {
   addText("user", text);
   history.push({ role: "user", content: text });
   if (!loaded) { addText("bot", "상점 데이터를 불러오는 중이에요. 잠시 후 다시 보내 주세요."); history.pop(); return; }
-  if (instantAnswer(text)) return;
+  if (await instantAnswer(text)) return;
   if (offline && !getKey() && !server?.serverKey) { offlineAnswer(text); return; }
   busy = true; $("#sendBtn").disabled = true;
   try { await aiAnswer(); } finally { busy = false; $("#sendBtn").disabled = false; }
@@ -861,7 +899,7 @@ function recordCard(col, id, rec, isNew) {
 function renderCounts() {
   $("#seg").querySelectorAll("button").forEach((b) => {
     const col = b.dataset.col;
-    const n = col === "logs" ? lsGet(LOG_KEY, []).length : col === "rules" ? activeRules().length : Object.keys(data[col]).length;
+    const n = col === "logs" ? getLogs().length : col === "rules" ? activeRules().length : Object.keys(data[col]).length;
     $("small", b).textContent = " " + n;
   });
 }
@@ -875,6 +913,14 @@ function kindBadge(m) {
   return h("span", { class: "kind", text: "⚡ 즉시 응답" });
 }
 async function saveFeedback(entry) {
+  if (fb.ready) {
+    const now = new Date().toISOString();
+    const prev = fbCache.find((f) => f.id === entry.id);
+    const body = { ...prev, ...entry, createdAt: prev?.createdAt || now, updatedAt: now };
+    Object.keys(body).forEach((k) => body[k] === undefined && delete body[k]);
+    await fb.sdk.setDoc(fb.sdk.doc(fb.db, "feedback", entry.id), body);
+    renderCounts(); return;
+  }
   if (server) { await fbRequest("POST", "/api/feedback", entry); renderCounts(); return; }
   const list = getFeedback();
   const i = list.findIndex((f) => f.id === entry.id);
@@ -914,10 +960,12 @@ function feedbackBox(sessionId, m, question) {
     note,
     h("div", { class: "fb-row" }, h("label", { class: "chk" }, use, "다음 답변 지침으로 사용"), save, status));
 }
+// 대화 기록: Firebase 모드(관리자)는 Firestore의 모든 고객 대화, 그 밖에는 이 브라우저의 기록
+function getLogs() { return fb.ready && fb.isAdmin ? fb.logsCache : lsGet(LOG_KEY, []); }
 function renderLogs() {
   const list = $("#list");
   list.innerHTML = "";
-  const logs = lsGet(LOG_KEY, []);
+  const logs = getLogs();
   const fbs = getFeedback();
   const fbOf = (id) => fbs.find((f) => f.msgId === id);
   const all = logs.flatMap((s) => s.messages);
@@ -930,6 +978,7 @@ function renderLogs() {
   const clearBtn = h("button", { type: "button", class: "btn danger", text: "기록 모두 지우기" });
   clearBtn.addEventListener("click", () => {
     if (clearBtn.dataset.confirm !== "1") { clearBtn.dataset.confirm = "1"; clearBtn.textContent = "정말 지우기 (피드백은 남음)"; setTimeout(() => { clearBtn.dataset.confirm = ""; clearBtn.textContent = "기록 모두 지우기"; }, 3000); return; }
+    if (fb.ready && fb.isAdmin) { clearCloudLogs().then(() => { renderLogs(); renderCounts(); }); return; }
     lsSet(LOG_KEY, []); renderLogs(); renderCounts();
   });
   list.append(h("div", { class: "rec" },
@@ -1009,7 +1058,8 @@ function renderRules() {
     h("div", { class: "ctx", text: (server ? `피드백은 로컬 서버 파일(${server.file})에 저장되고, AI 요청마다 서버가 아래 지침을 붙여 보내요. 어느 브라우저에서 열어도 같은 지침을 써요. ` : "피드백은 이 브라우저에 저장돼요. ")
       + "'지침으로 사용'을 켠 피드백 중 최근 30개가, 오래된 것부터 번호가 매겨져 들어가요." }),
     preview));
-  if (server) fetch("/api/guidance").then((r) => r.json()).then((g) => { preview.textContent = g.text ? g.text.trim() : empty; }).catch(() => { preview.textContent = "서버에 연결하지 못했어요."; });
+  if (fb.ready) preview.textContent = guidanceText().trim() || empty;   // Firebase 모드: 서버(Functions)와 같은 방식으로 만든 지침
+  else if (server) fetch("/api/guidance").then((r) => r.json()).then((g) => { preview.textContent = g.text ? g.text.trim() : empty; }).catch(() => { preview.textContent = "서버에 연결하지 못했어요."; });
   if (keep) list.append(keep);
   getFeedback().filter((f) => String(f.note || "").trim()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
     .forEach((f) => list.append(ruleCard(f, false)));
@@ -1105,8 +1155,28 @@ function openLock() { lockPw.value = ""; lockErr.textContent = ""; lock.hidden =
 function closeLock() { lock.hidden = true; }
 $("#lockCancel").addEventListener("click", closeLock);
 lock.addEventListener("click", (e) => { if (e.target === lock) closeLock(); });
+// Firebase 모드 관리자 로그인: Google 계정 → admins/{UID} 문서가 있으면 관리자
+async function fbAdminLogin() {
+  const { signInWithPopup, GoogleAuthProvider } = fb.sdk;
+  lockErr.textContent = "";
+  try {
+    const cred = fb.auth.currentUser ? { user: fb.auth.currentUser } : await signInWithPopup(fb.auth, new GoogleAuthProvider());
+    if (await checkAdmin(cred.user)) { unlocked = true; closeLock(); setMode(true); return; }
+    const uid = cred.user.uid;
+    lockErr.replaceChildren(
+      "관리자로 등록되지 않은 계정이에요. Firebase 콘솔 › Firestore › admins 컬렉션에 아래 UID로 문서를 만든 뒤 다시 눌러 주세요.",
+      h("br"), h("code", { text: uid, style: "user-select:all;word-break:break-all" }), " ",
+      h("button", { type: "button", class: "btn", text: "UID 복사", onclick: (ev) => { navigator.clipboard?.writeText(uid).then(() => { ev.target.textContent = "복사됨"; }).catch(() => {}); } }),
+      " ", h("button", { type: "button", class: "btn", text: "다른 계정", onclick: () => fb.sdk.signOut(fb.auth).then(() => { lockErr.textContent = ""; }) }));
+  } catch (err) {
+    lockErr.textContent = err?.code === "auth/popup-closed-by-user" ? "로그인 창이 닫혔어요. 다시 눌러 주세요."
+      : err?.code === "auth/operation-not-allowed" ? "Firebase 콘솔 › Authentication에서 Google 로그인을 켜 주세요."
+      : "로그인하지 못했어요. (" + (err?.code || err?.message || "알 수 없는 오류") + ")";
+  }
+}
 $("#lockForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (fb.ready) { await fbAdminLogin(); return; }
   if (sha256(lockPw.value.trim()) !== ADMIN_HASH) { lockErr.textContent = "비밀번호가 맞지 않아요."; lockPw.select(); return; }
   unlocked = true; closeLock(); setMode(true);
   if (canWrite === false) $("#adminHint").textContent = "이 계정은 보기만 할 수 있어요. 저장하려면 아티팩트 편집 권한이 필요해요.";
@@ -1116,7 +1186,7 @@ document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyA") {   // 한글 입력 상태에서도 동작하도록 e.code 사용
     e.preventDefault();
     if (!$("#adminView").hidden) setMode(false);
-    else if (unlocked) setMode(true);
+    else if (unlocked || fb.isAdmin) setMode(true);
     else openLock();
   }
 });
@@ -1153,8 +1223,105 @@ function localDb() {
   };
 }
 
+/* =========================================================
+   6) Firebase 모드 시작
+   ========================================================= */
+const FB_VERSION = "12.19.0";
+function snapToMap(snap) { const m = {}; snap.docs.forEach((d) => { m[d.id] = d.data(); }); return m; }
+function subscribeCol(col, onFirst) {
+  const { onSnapshot, collection } = fb.sdk;
+  let first = true;
+  return onSnapshot(collection(fb.db, col), (snap) => {
+    data[col] = snapToMap(snap);
+    if (first) { first = false; onFirst?.(); }
+    if (!$("#adminView").hidden && (col === current || col === "products")) renderList(false); else renderCounts();
+  }, (err) => { console.warn(col, "구독 실패", err?.code); });
+}
+async function checkAdmin(user) {
+  const { getDoc, doc } = fb.sdk;
+  const snap = await getDoc(doc(fb.db, "admins", user.uid)).catch(() => null);
+  if (!snap?.exists()) return false;
+  if (!fb.isAdmin) { fb.isAdmin = true; startAdminSync(); }
+  return true;
+}
+// 관리자만: 주문·배송·피드백·전체 고객 대화 기록을 실시간으로 받음
+function startAdminSync() {
+  const { onSnapshot, collection, query, orderBy, limit } = fb.sdk;
+  canWrite = true;
+  subscribeCol("orders"); subscribeCol("shipments");
+  onSnapshot(collection(fb.db, "feedback"), (snap) => { fbCache = snap.docs.map((d) => ({ id: d.id, ...d.data() })); renderCounts(); });
+  onSnapshot(query(collection(fb.db, "logs"), orderBy("at", "desc"), limit(2000)), (snap) => {
+    const sessions = {};
+    snap.docs.forEach((d) => {
+      const x = d.data(), at = x.at?.toDate ? x.at.toDate().toISOString() : new Date().toISOString();
+      const s = (sessions[x.sessionId] ||= { id: x.sessionId, startedAt: at, messages: [] });
+      if (at < s.startedAt) s.startedAt = at;
+      s.messages.push({ id: d.id, role: x.role, text: x.text, kind: x.kind, ms: x.ms, guides: x.guides, at, idx: x.idx ?? 0 });
+    });
+    fb.logsCache = Object.values(sessions).map((s) => ({ ...s, messages: s.messages.sort((a, b) => a.idx - b.idx) }))
+      .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+    renderCounts();
+  });
+  // 상품이 하나도 없을 때: 예시 데이터를 Firestore에 넣는 버튼
+  if (!$("#seedBtn")) {
+    const seed = h("button", { type: "button", class: "btn", id: "seedBtn", text: "예시 데이터 넣기" });
+    seed.addEventListener("click", async () => {
+      if (seed.dataset.confirm !== "1") { seed.dataset.confirm = "1"; seed.textContent = "정말 넣기 (같은 ID는 덮어씀)"; setTimeout(() => { seed.dataset.confirm = ""; seed.textContent = "예시 데이터 넣기"; }, 3000); return; }
+      seed.disabled = true; seed.textContent = "넣는 중…";
+      try {
+        const { writeBatch, doc } = fb.sdk;
+        const batch = writeBatch(fb.db);
+        COLS.forEach((c) => Object.entries(SEED[c]).forEach(([id, v]) => batch.set(doc(fb.db, c, id), v)));
+        await batch.commit();
+        seed.textContent = "넣었어요";
+      } catch (e) { seed.disabled = false; seed.textContent = "실패: " + (e?.code || "오류"); }
+    });
+    $(".admin-bar").append(seed);
+  }
+  $("#adminHint").textContent = "Firestore에 저장돼요. 고친 뒤 저장을 누르면 모든 고객의 상담 화면에 바로 반영돼요.";
+}
+async function clearCloudLogs() {
+  const { writeBatch, doc } = fb.sdk;
+  const ids = fb.logsCache.flatMap((s) => s.messages.map((m) => m.id));
+  for (let i = 0; i < ids.length; i += 400) {
+    const batch = writeBatch(fb.db);
+    ids.slice(i, i + 400).forEach((id) => batch.delete(doc(fb.db, "logs", id)));
+    await batch.commit();
+  }
+}
+async function initFirebase() {
+  const base = `https://www.gstatic.com/firebasejs/${FB_VERSION}/`;
+  const [appM, fsM, authM] = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-firestore.js"), import(base + "firebase-auth.js")]);
+  const app = appM.initializeApp(FIREBASE_CONFIG);
+  fb.db = fsM.getFirestore(app);
+  fb.auth = authM.getAuth(app);
+  fb.sdk = { ...fsM, ...authM };
+  fb.ready = true;
+  server = { firebase: true, serverKey: true, file: "Firestore의 feedback 컬렉션" };   // AI는 서버(/api/chat)가 키를 들고 호출
+  dbRef = {   // 관리자 화면의 저장·삭제가 쓰는 저장소 (권한은 Firestore 보안 규칙이 확인)
+    collection: (c) => ({ onSnapshot: (next, err) => fsM.onSnapshot(fsM.collection(fb.db, c), (s) => next({ docs: s.docs.map((d) => ({ id: d.id, data: () => d.data() })), metadata: s.metadata }), err) }),
+    doc(path) { const [c, id] = path.split("/"); const ref = fsM.doc(fb.db, c, id); return { set: (body) => fsM.setDoc(ref, body), delete: () => fsM.deleteDoc(ref) }; },
+  };
+  canWrite = false;
+  // 관리자 로그인 창을 Google 로그인으로 바꿈
+  lockPw.hidden = true;
+  $("#lockForm p").textContent = "관리자로 등록된 Google 계정으로 로그인하세요.";
+  $("#lockForm button[type=submit]").textContent = "Google 계정으로 로그인";
+  // 고객: 상품·재고만 실시간으로 받음 (주문·배송은 필요할 때 서버에 조회)
+  let pending = 2;
+  const done = () => { if (--pending === 0) loaded = true; };
+  subscribeCol("products", done); subscribeCol("inventory", done);
+  setTimeout(() => { if (!loaded) notice("상점 데이터를 불러오지 못했어요. 잠시 후 새로고침해 주세요."); }, 10000);
+  // 이미 로그인한 관리자면 바로 관리자 권한을 켬
+  authM.onAuthStateChanged(fb.auth, (u) => { if (u) checkAdmin(u); });
+}
+
 let offline = false;
 (async () => {
+  if (FB_MODE) {
+    try { await initFirebase(); return; }
+    catch (e) { console.warn("Firebase 연결 실패, 파일 모드로 전환", e); fb.ready = false; server = null; }
+  }
   const [cloudDb, user, sample] = await Promise.all([cap("db"), cap("user"), cap("sample")]);
   let db = cloudDb;
   if (!db) {

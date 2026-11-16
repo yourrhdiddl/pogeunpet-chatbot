@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// 포근펫 챗봇 Firestore 보안 규칙
+// - 관리자: admins/{로그인한 사람의 UID} 문서가 있는 Google 계정
+// - 상품·재고: 누구나 읽기, 관리자만 고치기
+// - 주문·배송: 관리자만 직접 읽기. 고객은 서버(/api/lookup)를 거쳐 개인정보를 가린 결과만 받음
+// - 대화 기록: 누구나 새 기록 추가만 가능, 읽기·고치기·지우기는 관리자만
+// - 피드백: 관리자만
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /admins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list, write: if false;   // 관리자 등록은 Firebase 콘솔에서만
+    }
+
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /inventory/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /orders/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /shipments/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /logs/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['sessionId', 'idx', 'role', 'text', 'kind', 'ms', 'guides', 'at'])
+                    && request.resource.data.sessionId is string
+                    && request.resource.data.sessionId.size() <= 40
+                    && request.resource.data.idx is int
+                    && request.resource.data.role in ['user', 'bot']
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() <= 4000
+                    && request.resource.data.at == request.time;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /feedback/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
