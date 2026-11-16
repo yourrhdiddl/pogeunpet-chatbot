@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT) || 5500;
 const ROOT = path.join(__dirname, "public");
 const DATA_DIR = path.join(__dirname, "data");
 const FB_FILE = path.join(DATA_DIR, "feedback.json");
-const MODEL = "claude-opus-5-5";
+const MODEL = "claude-haiku-5-5";
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".pdf": "application/pdf" };
 
 /* ---------- 피드백 저장소 (JSON 파일) ---------- */
