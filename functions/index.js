@@ -5,13 +5,14 @@
 // Claude API 키는 Firebase 비밀 저장소(Secret Manager)의 ANTHROPIC_API_KEY에 보관
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const admin = require("firebase-admin");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 const { RULES } = require("./prompt");
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const MODEL = "claude-opus-5-5";
+const MODEL = "claude-haiku-5-5";   // 가볍고 빠른 모델 (상담 채팅용)
 
 /* ---------- 남용 막기: IP별 1분당 요청 수 제한 (인스턴스 메모리 기준) ---------- */
 const hits = new Map();
