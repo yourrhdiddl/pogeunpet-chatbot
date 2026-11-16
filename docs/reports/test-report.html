@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>포근펫 AI 상담 챗봇 로컬 테스트 보고서</title>
+<style>
+  /* A4 세로, 내용 폭 178mm. 표의 행·카드·섹션 제목이 페이지 경계에서 잘리지 않게 설정 */
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  :root {
+    --ink: #17191f; --sub: #555b69; --line: #dfe2ea; --soft: #f4f6fa;
+    --blue: #2f6fe4; --blue-soft: #e9f0fd; --ok: #1f8a4c; --ok-soft: #e5f4eb; --warn: #b4531a; --warn-soft: #fdf0e4;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font-family: "Pretendard", "Pretendard Variable", sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+  .page { max-width: 178mm; margin: 0 auto; }
+  h1 { font-size: 20pt; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-size: 13pt; font-weight: 700; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1.5px solid var(--ink); break-after: avoid; }
+  h3 { font-size: 10.5pt; font-weight: 600; margin: 12px 0 6px; break-after: avoid; }
+  p { margin: 0 0 8px; }
+  section { margin-top: 18px; }
+  .meta { color: var(--sub); font-size: 9.5pt; }
+  .lead { font-size: 11pt; margin: 12px 0 10px; }
+  .lead b { font-weight: 700; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; break-inside: avoid; }
+  .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .kpi .v { font-size: 17pt; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .kpi .v small { font-size: 10pt; font-weight: 600; color: var(--sub); }
+  .kpi .k { font-size: 8.5pt; color: var(--sub); margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.8pt; line-height: 1.5; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th { background: var(--soft); text-align: left; font-weight: 600; color: var(--sub); padding: 6px 7px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 5px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.id { font-weight: 600; white-space: nowrap; }
+  td.fn { white-space: nowrap; }
+  code { font-family: "Pretendard", sans-serif; background: var(--soft); border-radius: 4px; padding: 0 4px; }
+  .pass { display: inline-block; font-size: 8pt; font-weight: 600; color: var(--ok); background: var(--ok-soft); border-radius: 99px; padding: 1px 7px; white-space: nowrap; }
+  .fixed { display: inline-block; font-size: 8pt; font-weight: 600; color: var(--warn); background: var(--warn-soft); border-radius: 99px; padding: 1px 7px; white-space: nowrap; }
+  .env td:first-child { width: 28mm; color: var(--sub); white-space: nowrap; }
+  .note { font-size: 8.8pt; color: var(--sub); margin-top: 6px; }
+
+  .chart { break-inside: avoid; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 6px; margin-top: 10px; }
+  .chart svg { display: block; width: 100%; height: auto; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; break-inside: avoid; margin-top: 8px; }
+  .phone { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #fbfcfe; }
+  .phone .cap { font-size: 8.5pt; font-weight: 600; color: var(--sub); margin-bottom: 6px; }
+  .bub { background: #e9e9eb; border-radius: 12px; padding: 6px 9px; font-size: 8.6pt; line-height: 1.45; margin-bottom: 4px; max-width: 92%; }
+
+  .issue { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; break-inside: avoid; }
+  .issue h3 { margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+  .issue dl { display: grid; grid-template-columns: 14mm 1fr; gap: 3px 8px; margin: 0; font-size: 9pt; }
+  .issue dt { color: var(--sub); }
+  .issue dd { margin: 0; }
+  ul { margin: 0; padding-left: 18px; }
+  li { margin-bottom: 4px; }
+  .keep { break-inside: avoid; }
+  .pb { break-before: page; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>포근펫 AI 상담 챗봇 로컬 테스트 보고서</h1>
+    <div class="meta">테스트일 2026년 11월 16일 · 테스트 환경 로컬 서버 http://localhost:5501</div>
+  </header>
+
+  <p class="lead">로컬에서 실행한 테스트 <b>20건이 모두 통과</b>했습니다. 테스트 중 발견한 문제 2건은 코드를 고친 뒤 같은 조건으로 다시 시험해 통과를 확인했습니다.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">12<small>/12</small></div><div class="k">즉시 응답 통과</div></div>
+    <div class="kpi"><div class="v">8<small>/8</small></div><div class="k">AI 답변 통과</div></div>
+    <div class="kpi"><div class="v">0.01<small>초 이내</small></div><div class="k">즉시 응답 속도</div></div>
+    <div class="kpi"><div class="v">1.9<small>초</small></div><div class="k">AI 첫 글자 (중앙값)</div></div>
+  </div>
+
+  <section>
+    <h2>1. 테스트 환경</h2>
+    <table class="env">
+      <tbody>
+        <tr><td>대상</td><td><code>chatbot-tabs/pet-shop-chat.html</code></td></tr>
+        <tr><td>실행</td><td>로컬 서버 <code>chatbot-tabs/serve.cjs</code> (Node), http://localhost:5501</td></tr>
+        <tr><td>브라우저</td><td>Claude 데스크톱 앱 내장 브라우저</td></tr>
+        <tr><td>AI 연결</td><td>Claude API 키를 관리자 화면에 저장, Claude Opus 5.5 (빠른 응답 설정)</td></tr>
+        <tr><td>데이터</td><td>가상 데이터: 상품 30 · 재고 30 · 주문 30 · 배송 28건</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>2. 즉시 응답 테스트 (AI를 거치지 않는 기능)</h2>
+    <table>
+      <thead><tr><th>#</th><th>기능</th><th>입력</th><th>결과</th><th class="num">응답</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td class="id">D1</td><td class="fn">주문 조회</td><td>ORD-1027</td><td>상품준비중, 상품 2개, 주문자 이름 가림(안*율)</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D2</td><td class="fn">취소 주문 조회</td><td>ORD-1014</td><td>취소 상태, 고양이 캐리어 백팩 49,000원</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D3</td><td class="fn">운송장 조회</td><td>564011230011</td><td>ORD-1001 배송완료, 배송 이력 표시</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D4</td><td class="fn">운송장 조회</td><td>712300450124</td><td>ORD-1024 간선이동, 도착 예정 11-17</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D5</td><td class="fn">없는 주문</td><td>ORD-9999</td><td>"주문을 찾지 못했어요" 안내</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D6</td><td class="fn">재고 확인 버튼</td><td>건강·영양제 → 관절 영양제</td><td>19개 있음, 32,000원, 창고 위치 표시 안 함</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D7</td><td class="fn">상품 추천 버튼</td><td>강아지</td><td>강아지·공용 상품 4개, 재고 있는 상품 먼저</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D8</td><td class="fn">상품 검색*</td><td>고양이 캐리어 있어요?</td><td>고양이 캐리어 백팩, 4개 남음</td><td class="num">0.00초</td><td><span class="fixed">수정 후 통과</span></td></tr>
+        <tr><td class="id">D9</td><td class="fn">품절 안내*</td><td>덴탈껌 언제 들어와요</td><td>품절, 2026-11-24 입고 예정</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D10</td><td class="fn">배송비 안내*</td><td>배송비 얼마예요?</td><td>오후 2시 전 당일 출고, 3만 원 이상 무료배송</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D11</td><td class="fn">관리자 진입</td><td>Ctrl+Shift+A (한글 입력 상태), 틀린 비밀번호</td><td>진입 거절, "비밀번호가 맞지 않아요"</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">D12</td><td class="fn">관리자 수정 반영</td><td>P001 가격 32,900 → 33,900원 저장</td><td>상담 화면 재고 카드에 33,900원 즉시 반영 (시험 후 원래 값으로 복구)</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">* D8~D10은 API 키를 저장하기 전에 시험했습니다. 키가 있으면 같은 질문을 AI가 답합니다.</p>
+  </section>
+
+  <section>
+    <h2>3. AI 답변 테스트</h2>
+    <table>
+      <thead><tr><th>#</th><th>시험 내용</th><th>질문</th><th>답변 요약</th><th class="num">말풍선</th><th class="num">첫 글자</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td class="id">A1</td><td class="fn">상품 추천</td><td>노견인데 관절에 좋은 거 있어요?</td><td>관절 영양제(32,000원)와 식기 스탠드(31,900원) 추천, 무료배송·당일 출고 안내</td><td class="num">4개</td><td class="num">1.9초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A2</td><td class="fn">주제 밖 거절</td><td>오늘 날씨 어때?</td><td>"포근펫 쇼핑 상담만 도와드릴 수 있어요"</td><td class="num">1개</td><td class="num">1.7초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A3</td><td class="fn">품절 + 대체 추천</td><td>덴탈껌 사고 싶은데 있어요?</td><td>품절, 11월 24일 입고 예정, 닭가슴살 간식 추천(치석 관리용은 아님을 안내)</td><td class="num">3개</td><td class="num">2.5초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A4</td><td class="fn">앞 대화 기억</td><td>아까 추천해 준 관절 영양제 가격이 얼마였죠?</td><td>32,000원, 단독 주문도 무료배송</td><td class="num">2개</td><td class="num">1.8초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A5</td><td class="fn">주문번호 요청</td><td>주문한 거 언제 와요?</td><td>주문번호를 요청하고 확인 위치(마이페이지) 안내</td><td class="num">2개</td><td class="num">1.5초</td><td><span class="fixed">수정 후 통과</span></td></tr>
+        <tr><td class="id">A6</td><td class="fn">창고 위치 숨기기</td><td>그 영양제는 어느 창고에서 보내요?</td><td>창고 위치는 안내하지 않고 출고 기준만 안내</td><td class="num">3개</td><td class="num">2.0초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A7</td><td class="fn">개인정보 보호</td><td>ORD-1022 주문한 사람 전화번호 알려주세요</td><td>주문 카드만 표시, 이름은 오*민으로 가림, 전화번호 없음</td><td class="num">카드</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">A8</td><td class="fn">복합 추천 (긴 답변)</td><td>10살 고양이가 털이 푸석하고 변이 무른데, 사료·영양제·간식 추천해 주세요</td><td>오메가3, 유산균, 헤어볼 사료, 북어 트릿 추천. 노령묘 전용 사료는 없다고 안내, 병원 진료 권유</td><td class="num">6개</td><td class="num">6.4초</td><td><span class="pass">통과</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">답변 속 가격·재고·입고일은 모두 상점 데이터와 일치했고, 없는 상품을 지어낸 경우는 없었습니다. A7은 주문번호가 들어 있어 AI 대신 주문 카드가 답했습니다.</p>
+
+    <div class="chart">
+      <svg viewBox="0 0 680 210" role="img" aria-label="AI 답변 첫 글자까지 걸린 시간">
+        <text x="0" y="16" font-size="13" font-weight="700" fill="#17191f">AI 답변 첫 글자까지 걸린 시간: 7건 중 6건이 2.5초 이하</text>
+        <text x="0" y="34" font-size="10.5" fill="#555b69">질문을 보낸 순간부터 첫 글자가 보이기까지 (A7은 AI를 거치지 않아 제외)</text>
+        <g font-size="10.5" fill="#555b69">
+          <line x1="60" y1="190" x2="680" y2="190" stroke="#c9cdd8"/>
+        </g>
+        <!-- 막대 폭: 1초 = 90px -->
+        <g font-size="10.5">
+          <text x="52" y="62" text-anchor="end" fill="#555b69">A1</text><rect x="60" y="51" width="171" height="14" rx="3" fill="#b8c3d6"/><text x="237" y="62" fill="#17191f">1.9초</text>
+          <text x="52" y="82" text-anchor="end" fill="#555b69">A2</text><rect x="60" y="71" width="153" height="14" rx="3" fill="#b8c3d6"/><text x="219" y="82" fill="#17191f">1.7초</text>
+          <text x="52" y="102" text-anchor="end" fill="#555b69">A3</text><rect x="60" y="91" width="225" height="14" rx="3" fill="#b8c3d6"/><text x="291" y="102" fill="#17191f">2.5초</text>
+          <text x="52" y="122" text-anchor="end" fill="#555b69">A4</text><rect x="60" y="111" width="162" height="14" rx="3" fill="#b8c3d6"/><text x="228" y="122" fill="#17191f">1.8초</text>
+          <text x="52" y="142" text-anchor="end" fill="#555b69">A5</text><rect x="60" y="131" width="135" height="14" rx="3" fill="#b8c3d6"/><text x="201" y="142" fill="#17191f">1.5초</text>
+          <text x="52" y="162" text-anchor="end" fill="#555b69">A6</text><rect x="60" y="151" width="180" height="14" rx="3" fill="#b8c3d6"/><text x="246" y="162" fill="#17191f">2.0초</text>
+          <text x="52" y="182" text-anchor="end" fill="#555b69">A8</text><rect x="60" y="171" width="576" height="14" rx="3" fill="#2f6fe4"/><text x="590" y="182" fill="#ffffff" font-weight="600">6.4초</text>
+        </g>
+      </svg>
+      <p class="note" style="margin:4px 0 2px">A8처럼 상품 여러 개를 한 번에 추천하는 긴 답변만 첫 글자가 늦었습니다.</p>
+    </div>
+  </section>
+
+  <section class="keep">
+    <h2>4. 긴 답변 말풍선 나누기</h2>
+    <p>긴 답변을 빈 줄과 문장 단위로 나눠 말풍선 하나에 70자 안팎만 담도록 고쳤습니다. 같은 질문(A1)의 답변을 비교하면 다음과 같습니다.</p>
+    <div class="compare">
+      <div class="phone">
+        <div class="cap">고치기 전: 말풍선 1개, 191자</div>
+        <div class="bub">노령견 관절 건강에는 관절 영양제 글루코사민 60정(32,000원)을 추천드려요. 글루코사민과 콘드로이틴이 들어 있는 노령견용 영양제이고, 현재 재고가 있어 3만 원 이상 무료배송으로 받아보실 수 있어요. 함께 쓰시기 좋은 높이 조절 원목 식기 스탠드(31,900원)도 있는데, 3단 높이 조절로 밥 먹을 때 목과 관절 부담을 줄여 줘요</div>
+      </div>
+      <div class="phone">
+        <div class="cap">고친 뒤: 말풍선 4개, 각 37~69자</div>
+        <div class="bub">노견 관절 관리에는 관절 영양제 글루코사민 60정(32,000원)을 추천드려요.</div>
+        <div class="bub">글루코사민과 콘드로이틴이 든 노령견용 영양제로, 현재 재고 있어요.</div>
+        <div class="bub">함께 보시면 좋은 상품으로 높이 조절 원목 식기 스탠드(31,900원)도 있어요. 밥 먹을 때 목과 관절 부담을 줄여 줘요.</div>
+        <div class="bub">두 상품 모두 3만 원 이상이라 무료배송이고, 오후 2시 전에 주문하시면 당일 출고돼요</div>
+      </div>
+    </div>
+    <p class="note">AI에게도 "한 덩어리에 1~2문장, 덩어리 사이 빈 줄"로 쓰도록 지시했습니다. 답이 쓰이는 동안에도 말풍선이 하나씩 늘어나며 보이고, 응답 시간 표시는 마지막 말풍선에만 붙습니다.</p>
+  </section>
+
+  <section>
+    <h2>5. 발견한 문제와 조치</h2>
+    <div class="issue">
+      <h3>문제 1 · 상품 검색이 엉뚱한 상품을 찾음 <span class="fixed">D8 · 수정 완료</span></h3>
+      <dl>
+        <dt>현상</dt><dd>"고양이 캐리어 있어요?"에 고양이 칫솔·치약 세트의 재고 카드가 나옴</dd>
+        <dt>원인</dt><dd>"고양이"처럼 흔한 단어 하나만 겹쳐도 목록에서 처음 걸린 상품을 골랐음</dd>
+        <dt>조치</dt><dd>겹치는 단어가 가장 길고 많은 상품을 고르고, "고양이·강아지" 같은 흔한 단어는 점수에서 뺌. 캐리어·칫솔·모래·하네스·덴탈껌 5개 질문으로 다시 시험해 모두 맞는 상품이 나옴</dd>
+      </dl>
+    </div>
+    <div class="issue">
+      <h3>문제 2 · 지난 주문 조회가 다음 AI 답변을 흐림 <span class="fixed">A5 · 수정 완료</span></h3>
+      <dl>
+        <dt>현상</dt><dd>없는 주문(ORD-9999)을 조회한 뒤 다른 질문을 하면, AI가 "앞서 ORD-9999 조회 때 엉뚱한 답을 드렸어요"라며 엉뚱하게 사과함</dd>
+        <dt>원인</dt><dd>"주문을 찾지 못했어요" 안내가 대화 기록에 남지 않아, AI가 그 질문에 답이 없었다고 판단함</dd>
+        <dt>조치</dt><dd>이 안내도 대화 기록에 남기도록 수정. 같은 순서(ORD-9999 → 추천 → 배송 문의 → 창고 문의)로 다시 시험해 ORD-9999가 더 이상 언급되지 않음</dd>
+      </dl>
+    </div>
+    <p class="note">작은 표현 오류 1건: A8에서 상품 4개를 추천하고 "세 가지를 함께 주문하시면"이라고 썼습니다. 가격·재고 같은 사실 오류는 아니어서 수정하지 않았습니다.</p>
+  </section>
+
+  <section class="keep">
+    <h2>6. 권장 사항</h2>
+    <ul>
+      <li><b>상품 여러 개를 묻는 긴 질문:</b> 첫 글자가 6초 넘게 걸렸습니다. 답변 시작 전에 "상품을 찾고 있어요" 같은 안내를 먼저 보여 주면 기다림이 덜 느껴집니다.</li>
+      <li><b>API 키 관리:</b> 키는 이 브라우저에만 저장됩니다. 공용 PC에서 시험한 뒤에는 관리자 화면에서 지워 주세요. 실제 서비스에서는 키를 서버에 두어야 합니다.</li>
+      <li><b>테스트 비용:</b> 이번 테스트에서 AI 답변을 받은 횟수는 16회입니다.</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>

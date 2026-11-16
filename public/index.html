@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>포근펫 상담</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  /* 레이아웃: 한 화면 앱. 위에 상점 헤더와 모드 전환, 아래는 아이폰 메신저형 상담창 또는 관리자 카드 목록 */
+  :root {
+    --bg: #f4f6fb; --bg-1: #e9f0ff; --bg-2: #f6ecfb; --bg-3: #e9f8f2;
+    --glass: rgba(255,255,255,.78); --card: #ffffff; --fg: #15171c; --muted: #646a78; --line: #e1e4ec;
+    --blue: #0a84ff; --blue-2: #3b9bff; --bubble: #e9e9eb; --bubble-fg: #000000;
+    --ok: #1f8a4c; --ok-soft: #e4f5ea; --warn: #b4531a; --warn-soft: #fff1e4; --bad: #c0362c; --bad-soft: #fde8e6;
+    --font: "Noto Sans KR", "Pretendard", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101217; --bg-1: #131a2c; --bg-2: #1e1426; --bg-3: #0f201b;
+      --glass: rgba(28,29,34,.8); --card: #1c1e24; --fg: #eceef3; --muted: #9ea4b3; --line: #2e323c;
+      --bubble: #26252a; --bubble-fg: #ffffff;
+      --ok: #5fd28f; --ok-soft: #173326; --warn: #f0a46c; --warn-soft: #3a2a1d; --bad: #ff7a6e; --bad-soft: #3d1f1c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101217; --bg-1: #131a2c; --bg-2: #1e1426; --bg-3: #0f201b;
+    --glass: rgba(28,29,34,.8); --card: #1c1e24; --fg: #eceef3; --muted: #9ea4b3; --line: #2e323c;
+    --bubble: #26252a; --bubble-fg: #ffffff;
+    --ok: #5fd28f; --ok-soft: #173326; --warn: #f0a46c; --warn-soft: #3a2a1d; --bad: #ff7a6e; --bad-soft: #3d1f1c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    font-family: var(--font); color: var(--fg); font-size: 15px;
+    background:
+      radial-gradient(1100px 600px at 0% 0%, var(--bg-1), transparent 60%),
+      radial-gradient(900px 600px at 100% 30%, var(--bg-2), transparent 60%),
+      radial-gradient(900px 700px at 30% 100%, var(--bg-3), transparent 60%),
+      var(--bg);
+    padding-block: 14px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .app { max-width: 760px; height: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+  header h1 { margin: 0; font-size: 19px; letter-spacing: -0.02em; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .modes { margin-left: auto; display: flex; gap: 4px; background: var(--glass); border: 1px solid var(--line); border-radius: 99px; padding: 3px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .modes button { border: 0; background: transparent; border-radius: 99px; padding: 6px 14px; font-size: 13px; font-weight: 500; color: var(--muted); }
+  .modes button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+  .notice { flex-shrink: 0; font-size: 13px; padding: 8px 12px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); }
+
+  /* ===== 상담창 ===== */
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--glass); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .chat-head { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 40px 10px; border-bottom: 1px solid var(--line); flex-shrink: 0; text-align: center; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: linear-gradient(180deg, #a8b4c4, #8592a6); }
+  .chat-head b { font-size: 13px; font-weight: 500; }
+  .chat-head span { font-size: 12px; color: var(--muted); }
+  .messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 40px 8px; display: flex; flex-direction: column; gap: 3px; }
+  .stamp { text-align: center; font-size: 11px; color: var(--muted); margin: 2px 0 8px; }
+  .row { display: flex; flex-direction: column; min-width: 0; }
+  .row.user { align-items: flex-end; }
+  .row.bot { align-items: flex-start; }
+  .row + .row.gap { margin-top: 10px; }
+  .bubble { max-width: min(78%, 500px); padding: 8px 13px; border-radius: 18px; line-height: 1.4; font-size: 15.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .user .bubble { background: linear-gradient(180deg, var(--blue-2), var(--blue)); color: #fff; }
+  .bot .bubble { background: var(--bubble); color: var(--bubble-fg); }
+  .user.tail .bubble { border-bottom-right-radius: 5px; }
+  .bot.tail .bubble { border-bottom-left-radius: 5px; }
+  .meta { font-size: 11px; color: var(--muted); margin: 3px 6px 0; font-variant-numeric: tabular-nums; }
+  .meta .fast { color: var(--ok); font-weight: 500; }
+  .typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; } .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .typing span { animation: none; opacity: .6; } }
+
+  .card { max-width: min(88%, 520px); background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  .card h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--ok-soft); color: var(--ok); white-space: nowrap; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; color: var(--muted); font-size: 13px; }
+  .kv b { color: var(--fg); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+  .lines { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .line { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+  .line.total { font-weight: 700; }
+  .timeline { list-style: none; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+  .timeline li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; font-size: 13px; }
+  .timeline li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); margin-top: 6px; }
+  .timeline li:first-child::before { background: var(--blue); }
+  .timeline small { color: var(--muted); display: block; font-variant-numeric: tabular-nums; }
+  .picks { display: flex; flex-wrap: wrap; gap: 6px; max-width: min(92%, 560px); margin-top: 4px; }
+  .pick { border: 1.5px solid var(--blue); background: transparent; color: var(--blue); border-radius: 99px; padding: 6px 12px; font-size: 13.5px; font-weight: 500; }
+  .pick:disabled { opacity: .45; cursor: default; }
+
+  .quick { display: flex; gap: 6px; padding: 8px 40px 0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .quick::-webkit-scrollbar { display: none; }
+  .quick button { flex-shrink: 0; border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 7px 13px; font-size: 13.5px; font-weight: 500; }
+  .quick button:hover { border-color: var(--blue); color: var(--blue); }
+  form.composer { display: flex; gap: 8px; padding: 8px 40px 12px; flex-shrink: 0; align-items: flex-end; }
+  .composer textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); border-radius: 20px; padding: 9px 16px; height: 40px; max-height: 120px; overflow-y: hidden; background: transparent; font-size: 16px; line-height: 1.35; }
+  .composer textarea:focus { outline: none; border-color: var(--blue); }
+  .send { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; font-size: 18px; flex-shrink: 0; display: grid; place-items: center; }
+  .send:disabled { opacity: .45; cursor: default; }
+
+  /* ===== 관리자 ===== */
+  .admin { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  .admin-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex-shrink: 0; }
+  .seg { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 4px; flex: 1 1 360px; }
+  .seg button { border: 0; background: transparent; border-radius: 10px; padding: 8px 4px; font-size: 13.5px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .seg small { font-variant-numeric: tabular-nums; margin-left: 2px; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 500; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .admin-hint { font-size: 12.5px; color: var(--muted); flex-shrink: 0; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+  .rec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rec.dirty { border-color: var(--blue); }
+  .rec.new { border-style: dashed; border-color: var(--blue); }
+  .rec-head { display: flex; align-items: center; gap: 8px; }
+  .rec-head b { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .rec-head .state { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .rec-head .state.on { color: var(--blue); }
+  .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 10px; }
+  .fields label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .fields label.wide { grid-column: 1 / -1; }
+  .fields input, .fields select, .fields textarea { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 14px; background: var(--bg); color: var(--fg); min-width: 0; width: 100%; }
+  .fields textarea { resize: vertical; min-height: 60px; line-height: 1.45; }
+  .rec-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .rec-actions .err { font-size: 12px; color: var(--bad); margin-right: auto; align-self: center; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
+
+  /* 상품 이미지 */
+  .art { display: block; flex-shrink: 0; }
+  .prod { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .prod > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .line .item { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .lines .line { align-items: center; }
+
+  /* 대화 기록 · 피드백 */
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stats b { color: var(--fg); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .toolbar select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--fg); font-size: 13px; }
+  .pair { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .pair:first-of-type { border-top: 0; padding-top: 0; }
+  .say { display: grid; grid-template-columns: 34px 1fr; gap: 8px; font-size: 14px; line-height: 1.5; }
+  .say .who { font-size: 12px; color: var(--muted); padding-top: 1px; }
+  .say .txt { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+  .say.bot .txt { background: var(--bg); border-radius: 10px; padding: 6px 10px; }
+  .kind { display: inline-block; font-size: 11px; font-weight: 500; border-radius: 99px; padding: 1px 7px; margin-right: 6px; background: var(--ok-soft); color: var(--ok); }
+  .kind.ai { background: rgba(10,132,255,.12); color: var(--blue); }
+  .say .txt .kind { display: table; margin-bottom: 4px; }
+  .kind.error { background: var(--bad-soft); color: var(--bad); }
+  .fb { margin-left: 42px; display: flex; flex-direction: column; gap: 6px; }
+  .fb-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .rate { border: 1px solid var(--line); background: var(--card); border-radius: 99px; padding: 4px 10px; font-size: 13px; }
+  .rate[aria-pressed="true"].good { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+  .rate[aria-pressed="true"].bad { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+  .fb textarea { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 13.5px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 54px; line-height: 1.45; width: 100%; }
+  .fb label.chk { font-size: 12.5px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; }
+  .fb .saved { font-size: 12px; color: var(--ok); }
+  .preview { background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow-y: auto; color: var(--fg); }
+  .ctx { font-size: 12.5px; color: var(--muted); }
+  .ctx b { color: var(--fg); font-weight: 500; }
+
+  .keybox { flex-shrink: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .keyrow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .keyrow input { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 14px; background: var(--bg); color: var(--fg); }
+  .key-state { font-variant-numeric: tabular-nums; }
+
+  /* 관리자 비밀번호 창 */
+  .overlay { position: fixed; inset: 0; z-index: 20; background: rgba(10, 12, 18, .45); display: grid; place-items: center; padding: 16px; }
+  .lock { width: min(340px, 100%); background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .lock h2 { margin: 0; font-size: 17px; }
+  .lock p { margin: 0; font-size: 13px; color: var(--muted); }
+  .lock input { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 18px; letter-spacing: .2em; background: var(--bg); color: var(--fg); }
+  .lock-err { min-height: 18px; font-size: 12.5px; color: var(--bad); }
+  .lock-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+  @media (max-width: 560px) {
+    body { padding-block: 8px; }
+    header h1 { font-size: 17px; }
+    header .sub { display: none; }
+    .messages, .chat-head, .quick, form.composer { padding-left: 18px; padding-right: 18px; }
+    .bubble { max-width: 84%; font-size: 15px; }
+    .card { max-width: 96%; }
+    .seg { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .fb { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div>
+      <h1>🐾 포근펫</h1>
+      <div class="sub">반려동물 용품 · 가상 상점 데모</div>
+    </div>
+  </header>
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- 상담 화면 -->
+  <section class="chat" id="chatView" aria-label="상담">
+    <div class="chat-head">
+      <div class="avatar" aria-hidden="true">🐶</div>
+      <b>포근펫 AI 상담원 ›</b>
+      <span>주문·배송·재고는 바로, 그 밖의 질문은 AI가 답해요</span>
+    </div>
+    <div class="messages" id="messages" aria-live="polite"></div>
+    <div class="quick" id="quick">
+      <button type="button" data-q="order">📦 주문 조회</button>
+      <button type="button" data-q="ship">🚚 배송 조회</button>
+      <button type="button" data-q="stock">🔍 재고 확인</button>
+      <button type="button" data-q="rec">🐾 상품 추천</button>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" placeholder="주문번호(예: ORD-1003)나 궁금한 점을 입력하세요" aria-label="메시지"></textarea>
+      <button class="send" id="sendBtn" aria-label="보내기">↑</button>
+    </form>
+  </section>
+
+  <!-- 관리자 화면 -->
+  <section class="admin" id="adminView" hidden aria-label="관리자">
+    <div class="admin-bar">
+      <div class="seg" id="seg">
+        <button type="button" data-col="products" aria-pressed="true">상품<small></small></button>
+        <button type="button" data-col="inventory" aria-pressed="false">재고<small></small></button>
+        <button type="button" data-col="orders" aria-pressed="false">주문<small></small></button>
+        <button type="button" data-col="shipments" aria-pressed="false">배송<small></small></button>
+        <button type="button" data-col="logs" aria-pressed="false">대화 기록<small></small></button>
+        <button type="button" data-col="rules" aria-pressed="false">피드백 지침<small></small></button>
+      </div>
+      <button class="btn primary" type="button" id="addBtn">+ 새로 추가</button>
+      <button class="btn" type="button" id="exitAdmin">상담 화면으로</button>
+    </div>
+    <div class="admin-hint" id="adminHint">고친 뒤 저장을 누르면 상담원이 바로 새 데이터로 답해요. Ctrl+Shift+A 또는 Esc로 상담 화면으로 돌아가요.</div>
+    <div class="list" id="list"></div>
+  </section>
+</div>
+
+<!-- 관리자 비밀번호 창 (Ctrl+Shift+A) -->
+<div class="overlay" id="lock" hidden>
+  <form class="lock" id="lockForm" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+    <h2 id="lockTitle">관리자 로그인</h2>
+    <p>관리자 비밀번호를 입력하세요.</p>
+    <input id="lockPw" type="password" inputmode="numeric" autocomplete="off" aria-label="관리자 비밀번호">
+    <div class="lock-err" id="lockErr" aria-live="polite"></div>
+    <div class="lock-actions">
+      <button class="btn" type="button" id="lockCancel">취소</button>
+      <button class="btn primary" type="submit">들어가기</button>
+    </div>
+  </form>
+</div>
+
+<script>
+/* =========================================================
+   1) 데이터 구조 — 관리자 화면 입력칸도 이 정의로 만들어짐
+   ========================================================= */
+const ORDER_STATUS = ["결제완료", "상품준비중", "배송중", "배송완료", "취소"];
+const SHIP_STATUS = ["집하대기", "집하완료", "간선이동", "배송출발", "배송완료"];
+const SCHEMA = {
+  products: { label: "상품", idLabel: "상품 ID", idHint: "P011", fields: [
+    { k: "name", label: "상품명" }, { k: "category", label: "카테고리" },
+    { k: "price", label: "가격(원)", type: "number" }, { k: "tags", label: "태그 (쉼표로 구분)" },
+    { k: "emoji", label: "이미지 아이콘 (이모지 1개)" }, { k: "color", label: "이미지 색 (#RRGGBB)" },
+    { k: "description", label: "설명", type: "textarea", wide: true } ] },
+  inventory: { label: "재고", idLabel: "상품 ID", idHint: "P011", fields: [
+    { k: "stock", label: "재고 수량", type: "number" }, { k: "warehouse", label: "보관 창고" },
+    { k: "restockDate", label: "입고 예정일" } ] },
+  orders: { label: "주문", idLabel: "주문번호", idHint: "ORD-1011", fields: [
+    { k: "customer", label: "주문자" }, { k: "phoneLast4", label: "휴대폰 뒷자리" },
+    { k: "orderedAt", label: "주문일" }, { k: "status", label: "주문 상태", type: "select", options: ORDER_STATUS },
+    { k: "total", label: "결제 금액(원)", type: "number" },
+    { k: "items", label: "주문 상품 (상품ID x수량, 쉼표로 구분)", wide: true } ] },
+  shipments: { label: "배송", idLabel: "배송 ID", idHint: "S011", fields: [
+    { k: "orderId", label: "주문번호" }, { k: "carrier", label: "택배사" }, { k: "trackingNo", label: "운송장 번호" },
+    { k: "status", label: "배송 상태", type: "select", options: SHIP_STATUS }, { k: "eta", label: "도착 예정" },
+    { k: "events", label: "배송 이력 (한 줄에 하나: 시간 | 위치 | 내용, 최신이 위)", type: "textarea", wide: true } ] },
+};
+const COLS = Object.keys(SCHEMA);
+const data = { products: {}, inventory: {}, orders: {}, shipments: {} };
+let loaded = false;
+
+/* =========================================================
+   2) 공통 도구
+   ========================================================= */
+const $ = (s, el = document) => el.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") el.className = v; else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null) el.setAttribute(k, v);
+  }
+  for (const kid of kids) if (kid !== null && kid !== undefined) el.append(kid);
+  return el;
+};
+const won = (n) => (Number(n) || 0).toLocaleString("ko-KR") + "원";
+const nowTime = () => new Date().toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+const maskName = (s = "") => s.length <= 1 ? s : s.length === 2 ? s[0] + "*" : s[0] + "*".repeat(s.length - 2) + s[s.length - 1];
+function cap(name) { return window.claude?.use ? window.claude.use(name).catch(() => null) : Promise.resolve(null); }
+function parseItems(str = "") {
+  return String(str).split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const m = s.match(/^([A-Za-z0-9-]+)\s*[x×*]\s*(\d+)$/i);
+    return m ? { id: m[1].toUpperCase(), qty: Number(m[2]) } : { id: s, qty: 1 };
+  });
+}
+function parseEvents(str = "") {
+  return String(str).split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [time = "", place = "", desc = ""] = l.split("|").map((x) => x.trim());
+    return { time, place, desc };
+  });
+}
+const productName = (id) => data.products[id]?.name || id;
+
+// 가상 상품 이미지: 카테고리별 포장 모양 + 상품색 + 아이콘으로 그림
+function productArt(p = {}, size = 56) {
+  const NS = "http://www.w3.org/2000/svg";
+  const s = document.createElementNS(NS, "svg");
+  const add = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); s.append(e); return e; };
+  s.setAttribute("viewBox", "0 0 80 80"); s.setAttribute("width", size); s.setAttribute("height", size);
+  s.setAttribute("class", "art"); s.setAttribute("aria-hidden", "true");
+  const c = /^#[0-9a-f]{6}$/i.test(p.color || "") ? p.color : "#8592a6";
+  const cat = String(p.category || ""), tags = String(p.tags || "");
+  add("rect", { x: 0, y: 0, width: 80, height: 80, rx: 16, fill: c, "fill-opacity": ".16" });
+  if (tags.includes("습식")) {                       // 캔
+    add("rect", { x: 20, y: 26, width: 40, height: 38, rx: 6, fill: c });
+    add("ellipse", { cx: 40, cy: 26, rx: 20, ry: 6, fill: c, "fill-opacity": ".65" });
+  } else if (/목욕|영양/.test(cat)) {               // 병
+    add("rect", { x: 34, y: 10, width: 12, height: 12, rx: 2, fill: c, "fill-opacity": ".65" });
+    add("rect", { x: 23, y: 20, width: 34, height: 50, rx: 11, fill: c });
+  } else if (/사료|간식|모래/.test(cat)) {           // 지퍼 파우치
+    add("rect", { x: 22, y: 12, width: 36, height: 7, rx: 2, fill: c, "fill-opacity": ".65" });
+    add("path", { d: "M22 18 L58 18 L63 65 Q63 70 58 70 L22 70 Q17 70 17 65 Z", fill: c });
+  } else {                                           // 그 밖의 용품
+    add("rect", { x: 14, y: 16, width: 52, height: 52, rx: 14, fill: c });
+  }
+  add("circle", { cx: 40, cy: 45, r: 14, fill: "#ffffff", "fill-opacity": ".92" });
+  const t = add("text", { x: 40, y: 46, "text-anchor": "middle", "dominant-baseline": "central", "font-size": 17 });
+  t.textContent = [...String(p.emoji || "🐾")].slice(0, 2).join("");
+  return s;
+}
+const shipmentForOrder = (oid) => Object.entries(data.shipments).find(([, s]) => s.orderId === oid);
+
+/* =========================================================
+   3) 상담 화면
+   ========================================================= */
+const box = $("#messages");
+const history = []; // AI에게 보낼 대화 기록 {role, content}
+let busy = false;
+
+box.append(h("div", { class: "stamp", text: "오늘 " + nowTime() }));
+
+function refreshTails() {
+  const rows = [...box.querySelectorAll(".row")];
+  rows.forEach((r, i) => {
+    const side = (el) => el && (el.classList.contains("user") ? "user" : "bot");
+    r.classList.toggle("gap", !!rows[i - 1] && side(rows[i - 1]) !== side(r));
+    r.classList.toggle("tail", !rows[i + 1] || side(rows[i + 1]) !== side(r));
+  });
+}
+function addRow(role, node, metaText) {
+  const row = h("div", { class: "row " + role }, node);
+  if (metaText) row.append(metaText);
+  box.append(row);
+  refreshTails();
+  box.scrollTop = box.scrollHeight;
+  return row;
+}
+/* =========================================================
+   대화 기록 · 관리자 피드백 (이 브라우저의 localStorage에 저장)
+   ========================================================= */
+const LOG_KEY = "pogeunpet.logs.v1", FB_KEY = "pogeunpet.feedback.v1";
+const memStore = {};   // localStorage를 쓸 수 없는 환경에서는 이 페이지가 열려 있는 동안만 보관
+const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return memStore[k] ?? d; } };
+const lsSet = (k, v) => { memStore[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
+const SESSION_ID = "C" + Date.now().toString(36);
+let logOn = false;
+function logMsg(role, text, extra = {}) {
+  if (!logOn || !text) return;
+  const logs = lsGet(LOG_KEY, []);
+  let s = logs.find((x) => x.id === SESSION_ID);
+  if (!s) { s = { id: SESSION_ID, startedAt: new Date().toISOString(), messages: [] }; logs.push(s); }
+  s.messages.push({ id: `${SESSION_ID}-${s.messages.length}`, role, text: String(text).slice(0, 4000), at: new Date().toISOString(), ...extra });
+  while (logs.length > 200) logs.shift();   // 오래된 대화부터 지워 용량 관리 (최근 200개 대화 보관)
+  lsSet(LOG_KEY, logs);
+}
+// 피드백 저장 위치: 로컬 서버가 있으면 서버 파일(chatbot-tabs/data/feedback.json), 없으면 이 브라우저
+let server = null, fbCache = [];
+const getFeedback = () => server ? fbCache : lsGet(FB_KEY, []);
+async function fbRequest(method, url, body) {
+  const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  fbCache = await res.json();
+  return fbCache;
+}
+async function deleteFeedback(id) {
+  if (server) return fbRequest("DELETE", "/api/feedback/" + encodeURIComponent(id));
+  lsSet(FB_KEY, getFeedback().filter((x) => x.id !== id));
+}
+const activeRules = () => getFeedback().filter((f) => f.useAsRule && String(f.note || "").trim());
+const clip = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; };
+// 관리자 피드백 → AI에게 주는 '운영자 지침' 문장
+function guidanceText() {
+  const rules = activeRules().sort((a, b) => String(a.updatedAt).localeCompare(String(b.updatedAt))).slice(-30);
+  if (!rules.length) return "";
+  return "\n\n[운영자 피드백 지침]\n관리자가 이전 상담 답변을 검토하고 남긴 지침이다. 위 규칙과 함께 반드시 지킨다. 지침끼리 부딪히면 번호가 큰(더 최근) 지침을 따른다.\n" +
+    rules.map((f, i) => {
+      let line = `${i + 1}. ${clip(f.note, 300)}`;
+      if (f.question) {
+        line += ` (상황: 고객이 "${clip(f.question, 80)}"라고 물었을 때`;
+        if (f.rating === "bad") line += `. 그때의 답변 "${clip(f.answer, 120)}"은 고쳐야 할 답변이었음`;
+        if (f.rating === "good") line += `. 그때의 답변이 좋았음`;
+        line += ")";
+      }
+      return line;
+    }).join("\n");
+}
+const systemPrompt = () => RULES + guidanceText() + "\n\n" + storeContext();
+
+const addText = (role, text) => {
+  const r = addRow(role, h("div", { class: "bubble", text }));
+  logMsg(role === "user" ? "user" : "bot", text, role === "user" ? {} : { kind: "data" });
+  return r;
+};
+function meta(kind, ms) {
+  const s = (ms / 1000).toFixed(ms < 100 ? 2 : 1) + "초";
+  return kind === "data"
+    ? h("div", { class: "meta" }, h("span", { class: "fast", text: "⚡ 즉시 응답" }), " · 데이터 조회 " + s)
+    : h("div", { class: "meta", text: "AI 답변 · 첫 글자 " + s });
+}
+function botData(node, t0, memo) {
+  const ms = performance.now() - t0;
+  addRow("bot", node, meta("data", ms));
+  if (memo) history.push({ role: "assistant", content: memo });
+  logMsg("bot", node.classList.contains("card") ? "[카드] " + (memo || clip(node.textContent, 200)) : node.textContent, { kind: "data", ms: Math.round(ms) });
+}
+
+// 긴 답을 읽기 좋게 여러 말풍선으로 나눔
+// 1) 빈 줄로 나뉜 덩어리마다 한 말풍선  2) 한 덩어리가 MAX자를 넘으면 문장 단위로 다시 나눔
+const BUBBLE_MAX = 70;
+function splitBubbles(text) {
+  const out = [];
+  String(text).trim().split(/\n\s*\n/).forEach((para) => {
+    para = para.trim();
+    if (!para) return;
+    if (para.length <= BUBBLE_MAX) { out.push(para); return; }
+    const sentences = para.split(/(?<=[.!?。])\s+|\n/).map((s) => s.trim()).filter(Boolean);
+    let cur = "";
+    sentences.forEach((s) => {
+      if (cur && (cur + " " + s).length > BUBBLE_MAX) { out.push(cur); cur = s; }
+      else cur = cur ? cur + " " + s : s;
+    });
+    if (cur) out.push(cur);
+  });
+  return out.length ? out : [String(text)];
+}
+// 정해진 안내 문장도 같은 방식으로 나눠 보냄 (시간 표시는 마지막 말풍선에만)
+function botTexts(text, t0, memo) {
+  const parts = splitBubbles(text);
+  parts.forEach((p, i) => addRow("bot", h("div", { class: "bubble", text: p }), i === parts.length - 1 ? meta("data", performance.now() - t0) : null));
+  if (memo) history.push({ role: "assistant", content: memo });
+  logMsg("bot", text, { kind: "data", ms: Math.round(performance.now() - t0) });
+}
+
+addText("bot", "안녕하세요, 포근펫이에요 🐾\n주문번호나 운송장 번호를 보내 주시면 바로 찾아드려요. 아래 버튼으로 시작해도 돼요.");
+logOn = true;   // 인사말 다음부터 기록
+
+// --- 카드 만들기 ---
+function orderCard(id) {
+  const o = data.orders[id];
+  const items = parseItems(o.items);
+  const tone = o.status === "취소" ? "bad" : o.status === "배송완료" ? "" : "warn";
+  const card = h("div", { class: "card" },
+    h("h3", {}, "주문 " + id, h("span", { class: "pill " + tone, text: o.status || "-" })),
+    h("div", { class: "kv" }, "주문자", h("b", { text: maskName(o.customer) }), "주문일", h("b", { text: o.orderedAt || "-" })),
+    h("div", { class: "lines" },
+      ...items.map((it) => h("div", { class: "line" }, h("span", { class: "item" }, productArt(data.products[it.id], 32), h("span", { text: `${productName(it.id)} × ${it.qty}` })),
+        h("span", { text: won((Number(data.products[it.id]?.price) || 0) * it.qty) }))),
+      h("div", { class: "line total" }, h("span", { text: "결제 금액" }), h("span", { text: won(o.total) }))));
+  const sh = shipmentForOrder(id);
+  if (sh) card.append(...shipmentParts(sh[1]));
+  return card;
+}
+function shipmentParts(s) {
+  const ev = parseEvents(s.events).slice(0, 3);
+  return [
+    h("div", { class: "kv" }, "배송", h("b", { text: `${s.status || "-"} · ${s.carrier || ""} ${s.trackingNo || ""}` }), "도착 예정", h("b", { text: s.eta || "-" })),
+    ev.length ? h("ul", { class: "timeline" }, ...ev.map((e) => h("li", {}, h("div", {}, e.desc || "-", h("small", { text: `${e.time} · ${e.place}` }))))) : null,
+  ];
+}
+function shipmentCard(id) {
+  const s = data.shipments[id];
+  return h("div", { class: "card" },
+    h("h3", {}, "배송 조회", h("span", { class: "pill " + (s.status === "배송완료" ? "" : "warn"), text: s.status || "-" })),
+    h("div", { class: "kv" }, "주문번호", h("b", { text: s.orderId || "-" })),
+    ...shipmentParts(s));
+}
+function stockCard(pid) {
+  const p = data.products[pid] || {}, inv = data.inventory[pid] || {};
+  const n = Number(inv.stock) || 0;
+  const pill = n === 0 ? ["bad", "품절"] : n < 10 ? ["warn", `${n}개 남음`] : ["", `${n}개 있음`];
+  return h("div", { class: "card" },
+    h("div", { class: "prod" }, productArt(p, 72), h("div", {},
+      h("h3", {}, p.name || pid, h("span", { class: "pill " + pill[0], text: pill[1] })),
+      h("div", { class: "kv" }, "가격", h("b", { text: won(p.price) }),
+        ...(n === 0 ? ["입고 예정", h("b", { text: inv.restockDate || "미정" })] : [])))));
+}
+function recCard(list, pet) {
+  return h("div", { class: "card" },
+    h("h3", {}, `${pet} 인기 상품`),
+    h("div", { class: "lines" }, ...list.map(([pid, p]) => {
+      const n = Number(data.inventory[pid]?.stock) || 0;
+      return h("div", { class: "line" }, h("span", { class: "item" }, productArt(p, 40), h("span", { text: `${p.name}${n === 0 ? " (품절)" : ""}` })), h("span", { text: won(p.price) }));
+    })));
+}
+function picks(options, onPick) {
+  const wrap = h("div", { class: "picks" });
+  options.forEach(([label, val]) => wrap.append(h("button", { type: "button", class: "pick", text: label, onclick: () => {
+    wrap.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    onPick(val, label);
+  } })));
+  box.append(h("div", { class: "row bot" }, wrap));
+  box.scrollTop = box.scrollHeight;
+}
+
+// --- 데이터로 바로 답하기 (AI 안 거침) ---
+function instantAnswer(text) {
+  const t0 = performance.now();
+  const ord = text.match(/ORD-?\s?(\d{4})/i);
+  if (ord) {
+    const id = "ORD-" + ord[1];
+    if (data.orders[id]) { const o = data.orders[id]; botData(orderCard(id), t0, `${id} 주문은 ${o.status} 상태예요.`); }
+    else {
+      // 안내한 내용을 대화 기록에도 남겨야 AI가 '답 안 한 질문'으로 오해하지 않음
+      const msg = `${id} 주문을 찾지 못했어요. 주문번호를 다시 확인해 주세요.`;
+      botData(h("div", { class: "bubble", text: msg }), t0, msg);
+    }
+    return true;
+  }
+  const digits = text.replace(/[^0-9]/g, "");
+  if (digits.length >= 10) {
+    const hit = Object.entries(data.shipments).find(([, s]) => String(s.trackingNo || "").replace(/[^0-9]/g, "") === digits);
+    if (hit) { botData(shipmentCard(hit[0]), t0, `운송장 ${hit[1].trackingNo}은 ${hit[1].status} 상태예요.`); return true; }
+  }
+  return false;
+}
+
+// --- AI 답변 ---
+function storeContext() {
+  const P = Object.entries(data.products).map(([id, p]) => {
+    const inv = data.inventory[id] || {};
+    return `${id} | ${p.name} | ${p.category} | ${won(p.price)} | 재고 ${inv.stock ?? "?"}개${Number(inv.stock) === 0 ? ` 입고예정 ${inv.restockDate || "미정"}` : ""} | 태그 ${p.tags || ""} | ${p.description || ""}`;
+  }).join("\n");
+  const O = Object.entries(data.orders).map(([id, o]) =>
+    `${id} | ${o.status} | 주문일 ${o.orderedAt} | ${parseItems(o.items).map((i) => productName(i.id) + " x" + i.qty).join(", ")} | ${won(o.total)}`).join("\n");
+  const S = Object.entries(data.shipments).map(([, s]) =>
+    `${s.orderId} | ${s.carrier} ${s.trackingNo} | ${s.status} | 도착예정 ${s.eta} | 최근 ${parseEvents(s.events)[0]?.desc || "-"}`).join("\n");
+  return `[상품·재고]\n${P}\n\n[주문]\n${O}\n\n[배송]\n${S}`;
+}
+const RULES = `너는 반려동물 용품 쇼핑몰 "포근펫"의 AI 상담원이다. 아래 상점 데이터만 근거로 답한다.
+
+규칙
+1. 상품, 가격, 재고, 주문, 배송, 교환·반품, 반려동물 용품 추천만 답한다. 관계없는 질문은 "포근펫 쇼핑 상담만 도와드릴 수 있어요 🐾"라고만 답한다.
+2. 데이터에 없는 상품, 가격, 재고, 배송 정보는 지어내지 않는다. 모르면 고객센터(평일 10~17시)를 안내한다.
+3. 주문이나 배송을 물으면 주문번호(예: ORD-1003)를 알려 달라고 한다. 주문자 이름과 연락처는 말하지 않는다.
+4. 재고가 0이면 품절과 입고 예정일을 알려 주고, 비슷한 대체 상품을 하나 제안한다. 보관 창고 위치는 말하지 않는다.
+5. 배송 정책: 오후 2시 전 주문 당일 출고, 3만 원 이상 무료배송(미만 3,000원). 교환·반품은 수령 후 7일 안에 마이페이지에서 신청, 단순 변심은 왕복 6,000원.
+6. 친절한 존댓말로 짧게 답한다. 메신저처럼 한 덩어리에 1~2문장만 쓰고, 덩어리 사이에는 빈 줄을 넣는다 (덩어리마다 말풍선이 따로 나간다). 전체는 2~4덩어리.
+7. 마크다운 기호(**, #, -)는 쓰지 않는다.`;
+
+const SAMPLE_ERR = {
+  not_granted: "Claude 사용을 허용하지 않아서 AI 답변을 할 수 없어요. 주문번호·운송장 조회와 버튼 메뉴는 계속 쓸 수 있어요.",
+  rate_limited: "질문이 몰려서 잠시 후 다시 보내 주세요.",
+  sampling_disabled: "이 계정에서는 AI 답변을 쓸 수 없어요.",
+  session_expired: "로그인이 만료됐어요. 다시 로그인해 주세요.",
+  refused: "이 질문에는 답할 수 없어요. 다르게 물어봐 주세요.",
+  bad_key: "API 키가 올바르지 않아요. 관리자 화면(Ctrl+Shift+A)에서 키를 다시 넣어 주세요.",
+  no_key: "API 키가 없어요. 관리자 화면(Ctrl+Shift+A)에 키를 넣거나 서버에 ANTHROPIC_API_KEY를 설정해 주세요.",
+  empty: "답변이 비어 있어요. 다시 보내 주세요.",
+};
+/* --- 파일 모드용 Claude API 키: 이 브라우저(localStorage)에만 저장, 파일에는 들어가지 않음 --- */
+const KEY_STORE = "pogeunpet.claudeKey";
+let memKey = "";
+function getKey() { try { return localStorage.getItem(KEY_STORE) || memKey; } catch { return memKey; } }
+function setKey(v) { memKey = v; try { v ? localStorage.setItem(KEY_STORE, v) : localStorage.removeItem(KEY_STORE); } catch {} }
+
+// Claude API를 브라우저에서 직접 호출 (스트리밍: 답이 쓰이는 대로 보여줌)
+async function claudeApi(key, onText) {
+  const msgs = history.slice(-12);
+  while (msgs[0]?.role === "assistant") msgs.shift();
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2026-10-21",
+      "anthropic-beta": "server-side-fallback-2026-07-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-opus-5-5",
+      max_tokens: 4096,
+      stream: true,
+      output_config: { effort: "low" },   // 상담 채팅은 빠른 답이 중요
+      fallbacks: "default",                // 모델이 거절하면 서버가 다른 모델로 이어서 답함
+      system: systemPrompt(),
+      messages: msgs,
+    }),
+  });
+  return readStream(res, onText);
+}
+
+// 로컬 서버를 거쳐 호출: 서버가 '운영자 피드백 지침'을 붙여서 Claude에 보냄
+async function claudeViaServer(onText) {
+  const key = getKey();
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(key ? { "x-api-key": key } : {}) },
+    body: JSON.stringify({ system: RULES + "\n\n" + storeContext(), messages: history.slice(-12) }),   // 지침은 서버가 붙임
+  });
+  const guides = Number(res.headers.get("x-guides-count")) || 0;
+  return { text: await readStream(res, onText), guides };
+}
+
+// 스트리밍 응답(SSE)을 읽어 답이 쓰이는 대로 onText에 넘김
+async function readStream(res, onText) {
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const type = err?.error?.type;
+    throw { code: type === "no_key" ? "no_key" : res.status === 401 ? "bad_key" : res.status === 429 ? "rate_limited" : "api", message: err?.error?.message || "HTTP " + res.status };
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = "", text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+      if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") { text += ev.delta.text; onText(text); }
+      else if (ev.type === "message_delta" && ev.delta?.stop_reason === "refusal") throw { code: "refused" };
+      else if (ev.type === "error") throw { code: "api", message: ev.error?.message, text };
+    }
+  }
+  if (!text.trim()) throw { code: "empty" };
+  return text;
+}
+
+async function aiAnswer() {
+  const t0 = performance.now();
+  const row = addRow("bot", h("div", { class: "bubble" }, h("span", { class: "typing" }, h("span"), h("span"), h("span"))));
+  const bubble = $(".bubble", row);
+  const sample = offline ? null : await cap("sample");
+  const key = sample ? "" : getKey();
+  const viaServer = !sample && !!server && (server.serverKey || !!key);
+  if (!sample && !key && !viaServer) { bubble.textContent = "AI 답변은 Claude 아티팩트에서 열거나, 관리자 화면에 API 키를 넣으면 동작해요."; logMsg("bot", bubble.textContent, { kind: "error" }); return; }
+  let first = 0;
+  // 답이 쓰이는 대로 여러 말풍선에 나눠 보여줌 (첫 말풍선 = 입력 중 표시가 있던 자리)
+  const rows = [row];
+  const show = (t) => {
+    if (!first) first = performance.now() - t0;
+    const parts = splitBubbles(t);
+    parts.forEach((p, i) => {
+      if (!rows[i]) rows[i] = addRow("bot", h("div", { class: "bubble" }));
+      $(".bubble", rows[i]).textContent = p;
+    });
+    rows.splice(parts.length).forEach((r) => r.remove());
+    refreshTails();
+    box.scrollTop = box.scrollHeight;
+  };
+  let guides = activeRules().length;
+  const turns = [{ role: "user", content: systemPrompt() }, ...history.slice(-12)];
+  if (turns[1]?.role === "assistant") turns.splice(1, 0, { role: "user", content: "(이전 대화)" });
+  try {
+    let text;
+    if (sample) text = (await sample(turns, { modelTier: "quick", cache: false, onText: ({ text }) => show(text) })).text;
+    else if (viaServer) { const r = await claudeViaServer(show); text = r.text; guides = r.guides; }   // 서버가 실제로 붙인 지침 수
+    else text = await claudeApi(key, show);
+    show(text.trim());
+    history.push({ role: "assistant", content: text.trim() });
+    rows.at(-1).append(meta("ai", first || performance.now() - t0));
+    logMsg("bot", text.trim(), { kind: "ai", ms: Math.round(first || performance.now() - t0), guides });
+  } catch (e) {
+    history.pop();
+    rows.splice(1).forEach((r) => r.remove());
+    bubble.textContent = e?.text || "";
+    if (!e?.text) bubble.textContent = "⚠️ " + (SAMPLE_ERR[e?.code] || (e?.message ? "AI 연결 오류: " + e.message : "잠시 연결이 끊겼어요. 다시 보내 주세요."));
+    logMsg("bot", bubble.textContent, { kind: "error" });
+  }
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  addText("user", text);
+  history.push({ role: "user", content: text });
+  if (!loaded) { addText("bot", "상점 데이터를 불러오는 중이에요. 잠시 후 다시 보내 주세요."); history.pop(); return; }
+  if (instantAnswer(text)) return;
+  if (offline && !getKey() && !server?.serverKey) { offlineAnswer(text); return; }
+  busy = true; $("#sendBtn").disabled = true;
+  try { await aiAnswer(); } finally { busy = false; $("#sendBtn").disabled = false; }
+}
+
+// 빠른 메뉴: 모두 AI 없이 바로 답함
+const QUICK = {
+  order() { const t0 = performance.now(); botData(h("div", { class: "bubble", text: "주문번호를 보내 주세요.\n예) ORD-1003" }), t0); setInput("ORD-"); },
+  ship() { const t0 = performance.now(); botData(h("div", { class: "bubble", text: "주문번호나 운송장 번호를 보내 주세요.\n예) ORD-1004 또는 운송장 12자리" }), t0); setInput(""); },
+  stock() {
+    const t0 = performance.now();
+    // 상품이 많아서 카테고리 → 상품 2단계로 고름
+    const cats = [...new Set(Object.values(data.products).map((p) => p.category || "기타"))];
+    botData(h("div", { class: "bubble", text: "어떤 종류의 상품을 찾으세요?" }), t0);
+    picks(cats.map((c) => [`${c} ${Object.values(data.products).filter((p) => (p.category || "기타") === c).length}`, c]), (cat) => {
+      addText("user", cat);
+      const t1 = performance.now();
+      botData(h("div", { class: "bubble", text: `${cat} 중 어떤 상품의 재고를 볼까요?` }), t1);
+      picks(Object.entries(data.products).filter(([, p]) => (p.category || "기타") === cat).map(([id, p]) => [p.name, id]), (pid, label) => {
+        addText("user", label);
+        const t2 = performance.now();
+        botData(stockCard(pid), t2, `${label} 재고는 ${data.inventory[pid]?.stock ?? "?"}개예요.`);
+      });
+    });
+  },
+  rec() {
+    const t0 = performance.now();
+    botData(h("div", { class: "bubble", text: "누구를 위한 상품을 찾으세요?" }), t0);
+    picks([["🐶 강아지", "강아지"], ["🐱 고양이", "고양이"]], (pet, label) => {
+      addText("user", label);
+      recommend(pet);
+      const t2 = performance.now();
+      botData(h("div", { class: "bubble", text: "나이, 크기, 고민을 알려 주시면 더 맞춰서 골라 드릴게요." }), t2);
+    });
+  },
+};
+function recommend(pet) {
+  const t1 = performance.now();
+  const list = Object.entries(data.products)
+    .filter(([, p]) => String(p.tags || "").includes(pet) || String(p.tags || "").includes("공용"))
+    .sort(([a], [b]) => (Number(data.inventory[b]?.stock) > 0) - (Number(data.inventory[a]?.stock) > 0))
+    .slice(0, 4);
+  botData(list.length ? recCard(list, pet) : h("div", { class: "bubble", text: "아직 추천할 상품이 없어요." }), t1, `${pet} 상품으로 ${list.map(([, p]) => p.name).join(", ")}을 추천했어요.`);
+}
+
+// AI를 쓸 수 없을 때(파일로 직접 열었을 때) 자주 묻는 질문은 데이터와 정책으로 바로 답함
+function offlineAnswer(text) {
+  const t0 = performance.now();
+  const say = (msg) => botTexts(msg, t0, msg);
+  if (/교환|반품|환불|취소/.test(text))
+    return say("상품을 받으신 날부터 7일 안에 마이페이지 > 주문내역에서 신청하실 수 있어요.\n단순 변심은 왕복 배송비 6,000원이 들고, 불량·오배송은 무료예요. 환불은 반품 확인 후 영업일 3일 안에 처리돼요.");
+  if (/배송비|무료\s?배송|출고|도착|언제\s?(와|오)|배송\s?기간|며칠/.test(text))
+    return say("평일 오후 2시 전 주문은 당일 출고되고, 보통 1~3일 안에 받아보실 수 있어요.\n3만 원 이상 구매하시면 무료배송, 그 미만은 배송비 3,000원이에요.");
+  // 상품 이름의 단어가 질문에 많이(길게) 겹칠수록 높은 점수. '고양이', '강아지' 같은 흔한 단어는 빼고 셈
+  const COMMON = ["고양이", "강아지", "세트", "대형"];
+  const words = (name) => String(name).split(/[\s·/]+/).map((w) => w.replace(/[0-9a-zA-Z.]+$/, "")).filter((w) => w.length >= 2 && !COMMON.includes(w));
+  const score = (p) => words(p.name).reduce((s, w) => s + (text.includes(w) ? w.length : 0), 0);
+  const ranked = Object.entries(data.products).map(([id, p]) => [id, p, score(p)]).filter((x) => x[2] > 0).sort((a, b) => b[2] - a[2]);
+  const hit = ranked[0];
+  if (hit) { botData(stockCard(hit[0]), t0, `${hit[1].name} 재고는 ${data.inventory[hit[0]]?.stock ?? "?"}개예요.`); return; }
+  const pet = /고양이|냥/.test(text) ? "고양이" : /강아지|개|멍/.test(text) ? "강아지" : "";
+  if (pet) return recommend(pet);
+  say("이 질문은 AI 상담이 필요해요. Claude 아티팩트 링크로 열면 AI가 답해 드려요.\n여기서는 주문번호·운송장 조회, 상품 이름 검색, 배송·교환 안내, 아래 버튼 메뉴를 바로 쓸 수 있어요.");
+}
+const input = $("#input");
+function setInput(v) { input.value = v; input.focus(); autoGrow(); }
+function autoGrow() { input.style.height = "auto"; const hgt = Math.min(input.scrollHeight + 2, 120); input.style.height = hgt + "px"; input.style.overflowY = hgt >= 120 ? "auto" : "hidden"; }
+$("#quick").addEventListener("click", (e) => { const b = e.target.closest("button[data-q]"); if (b && loaded) QUICK[b.dataset.q](); });
+$("#composer").addEventListener("submit", (e) => { e.preventDefault(); const v = input.value; input.value = ""; autoGrow(); send(v); });
+input.addEventListener("input", autoGrow);
+input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#composer").requestSubmit(); } });
+
+/* =========================================================
+   4) 관리자 화면
+   ========================================================= */
+let current = "products", dbRef = null;
+const dirty = { products: false, inventory: false, orders: false, shipments: false };
+
+function fieldInput(f, val) {
+  if (f.type === "textarea") return h("textarea", {}, String(val ?? ""));
+  if (f.type === "select") {
+    const sel = h("select");
+    const opts = f.options.includes(val) || !val ? f.options : [val, ...f.options];
+    opts.forEach((o) => sel.append(h("option", { value: o, text: o })));
+    sel.value = val || f.options[0];
+    return sel;
+  }
+  const inp = h("input", { type: f.type === "number" ? "number" : "text", inputmode: f.type === "number" ? "numeric" : null });
+  inp.value = val ?? "";
+  return inp;
+}
+function recordCard(col, id, rec, isNew) {
+  const sc = SCHEMA[col];
+  const card = h("div", { class: "rec" + (isNew ? " new" : "") });
+  const idInput = isNew ? h("input", { type: "text", placeholder: "예: " + sc.idHint, id: `${col}-new-id` }) : null;
+  const artBox = col === "products" ? h("span", {}, productArt(rec, 40)) : null;
+  card.append(h("div", { class: "rec-head" }, artBox,
+    isNew ? h("b", { text: "새 " + sc.label }) : h("b", { text: id }),
+    h("span", { class: "state", text: isNew ? "" : col === "inventory" ? productName(id) : col === "products" ? (rec.name || "") : col === "orders" ? (rec.status || "") : (rec.orderId || "") })));
+  const fields = h("div", { class: "fields" });
+  if (isNew) fields.append(h("label", { for: idInput.id }, sc.idLabel, idInput));
+  const inputs = {};
+  sc.fields.forEach((f) => {
+    const el = fieldInput(f, rec[f.k]);
+    el.id = `${col}-${id || "new"}-${f.k}`;
+    inputs[f.k] = el;
+    fields.append(h("label", { class: f.wide ? "wide" : "", for: el.id }, f.label, el));
+  });
+  card.append(fields);
+  const err = h("span", { class: "err" });
+  const save = h("button", { type: "button", class: "btn primary", text: isNew ? "추가" : "저장", disabled: isNew ? null : "" });
+  const del = isNew ? h("button", { type: "button", class: "btn", text: "취소" }) : h("button", { type: "button", class: "btn danger", text: "삭제" });
+  card.append(h("div", { class: "rec-actions" }, err, del, save));
+  const markDirty = () => { if (!isNew) { card.classList.add("dirty"); save.disabled = false; dirty[col] = true; } };
+  card.addEventListener("input", markDirty);
+  if (artBox) card.addEventListener("input", () => {
+    const live = {}; sc.fields.forEach((f) => { live[f.k] = inputs[f.k].value; });
+    artBox.replaceChildren(productArt(live, 40));
+  });
+  card.addEventListener("change", markDirty);
+  save.addEventListener("click", async () => {
+    err.textContent = "";
+    const docId = isNew ? idInput.value.trim() : id;
+    if (!docId) { err.textContent = sc.idLabel + "를 입력해 주세요."; idInput.focus(); return; }
+    if (!/^[A-Za-z0-9_\-.~:@+]+$/.test(docId)) { err.textContent = "ID에는 영문, 숫자, - 만 쓸 수 있어요."; return; }
+    if (isNew && data[col][docId]) { err.textContent = "이미 있는 ID예요."; return; }
+    const body = {};
+    sc.fields.forEach((f) => { const v = inputs[f.k].value; body[f.k] = f.type === "number" ? Number(v) || 0 : v.trim(); });
+    save.disabled = true; save.textContent = "저장 중…";
+    try {
+      await dbRef.doc(`${col}/${docId}`).set(body);
+      dirty[col] = false;
+      renderList(true);
+    } catch (e) {
+      save.disabled = false; save.textContent = isNew ? "추가" : "저장";
+      err.textContent = e?.code === "invalid_argument" ? "저장 권한이 없거나 입력값이 올바르지 않아요." : "저장하지 못했어요. 다시 눌러 주세요.";
+    }
+  });
+  del.addEventListener("click", async () => {
+    if (isNew) { card.remove(); return; }
+    if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = "정말 삭제"; setTimeout(() => { del.dataset.confirm = ""; del.textContent = "삭제"; }, 3000); return; }
+    del.disabled = true;
+    try { await dbRef.doc(`${col}/${id}`).delete(); dirty[col] = false; renderList(true); }
+    catch { del.disabled = false; err.textContent = "삭제하지 못했어요."; }
+  });
+  return card;
+}
+function renderCounts() {
+  $("#seg").querySelectorAll("button").forEach((b) => {
+    const col = b.dataset.col;
+    const n = col === "logs" ? lsGet(LOG_KEY, []).length : col === "rules" ? activeRules().length : Object.keys(data[col]).length;
+    $("small", b).textContent = " " + n;
+  });
+}
+
+/* ---------- 대화 기록 탭: 모든 대화를 보고 답변마다 피드백 ---------- */
+let logFilter = "all";
+const fmtTime = (iso) => { try { return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return iso; } };
+function kindBadge(m) {
+  if (m.kind === "ai") return h("span", { class: "kind ai", text: `AI · ${((m.ms || 0) / 1000).toFixed(1)}초${m.guides ? ` · 지침 ${m.guides}개 반영` : ""}` });
+  if (m.kind === "error") return h("span", { class: "kind error", text: "오류" });
+  return h("span", { class: "kind", text: "⚡ 즉시 응답" });
+}
+async function saveFeedback(entry) {
+  if (server) { await fbRequest("POST", "/api/feedback", entry); renderCounts(); return; }
+  const list = getFeedback();
+  const i = list.findIndex((f) => f.id === entry.id);
+  const now = new Date().toISOString();
+  if (i >= 0) list[i] = { ...list[i], ...entry, updatedAt: now };
+  else list.push({ createdAt: now, updatedAt: now, ...entry });
+  lsSet(FB_KEY, list);
+  renderCounts();
+}
+const savedWhere = () => server ? "서버에 저장됨" : "저장됨";
+function feedbackBox(sessionId, m, question) {
+  const fb = getFeedback().find((f) => f.msgId === m.id) || {};
+  let rating = fb.rating || null;
+  const good = h("button", { type: "button", class: "rate good", text: "👍 좋아요", "aria-pressed": String(rating === "good") });
+  const bad = h("button", { type: "button", class: "rate bad", text: "👎 고쳐야 해요", "aria-pressed": String(rating === "bad") });
+  const note = h("textarea", { "aria-label": "피드백", placeholder: "다음부터 어떻게 답해야 하나요? 예) 영양제를 추천할 때는 하루 급여량도 함께 알려 주세요" }, fb.note || "");
+  const use = h("input", { type: "checkbox" });
+  use.checked = fb.id ? !!fb.useAsRule : true;
+  const status = h("span", { class: "saved", text: fb.id ? "저장됨" : "" });
+  const save = h("button", { type: "button", class: "btn primary", text: "피드백 저장" });
+  const pick = (r) => { rating = rating === r ? null : r; good.setAttribute("aria-pressed", String(rating === "good")); bad.setAttribute("aria-pressed", String(rating === "bad")); status.textContent = ""; };
+  good.addEventListener("click", () => pick("good"));
+  bad.addEventListener("click", () => pick("bad"));
+  note.addEventListener("input", () => { status.textContent = ""; });
+  save.addEventListener("click", async () => {
+    if (!rating && !note.value.trim()) { status.textContent = ""; note.focus(); note.placeholder = "평가(👍/👎)나 피드백 내용을 하나 이상 남겨 주세요"; return; }
+    fb.id = fb.id || "F" + Date.now().toString(36);
+    save.disabled = true; status.textContent = "저장 중…";
+    try {
+      await saveFeedback({ id: fb.id, sessionId, msgId: m.id, question, answer: m.text, kind: m.kind, rating, note: note.value.trim(), useAsRule: use.checked });
+      status.textContent = use.checked && note.value.trim() ? `${savedWhere()} · 다음 AI 답변부터 지침으로 반영돼요` : savedWhere();
+    } catch { status.textContent = "저장하지 못했어요. 서버가 켜져 있는지 확인해 주세요."; }
+    save.disabled = false;
+  });
+  return h("div", { class: "fb" },
+    h("div", { class: "fb-row" }, good, bad),
+    note,
+    h("div", { class: "fb-row" }, h("label", { class: "chk" }, use, "다음 답변 지침으로 사용"), save, status));
+}
+function renderLogs() {
+  const list = $("#list");
+  list.innerHTML = "";
+  const logs = lsGet(LOG_KEY, []);
+  const fbs = getFeedback();
+  const fbOf = (id) => fbs.find((f) => f.msgId === id);
+  const all = logs.flatMap((s) => s.messages);
+  const bots = all.filter((m) => m.role === "bot");
+  const filterSel = h("select", { "aria-label": "보기" },
+    h("option", { value: "all", text: "모든 답변" }), h("option", { value: "todo", text: "피드백 안 한 답변" }),
+    h("option", { value: "bad", text: "👎 받은 답변" }), h("option", { value: "ai", text: "AI 답변만" }));
+  filterSel.value = logFilter;
+  filterSel.addEventListener("change", () => { logFilter = filterSel.value; renderLogs(); });
+  const clearBtn = h("button", { type: "button", class: "btn danger", text: "기록 모두 지우기" });
+  clearBtn.addEventListener("click", () => {
+    if (clearBtn.dataset.confirm !== "1") { clearBtn.dataset.confirm = "1"; clearBtn.textContent = "정말 지우기 (피드백은 남음)"; setTimeout(() => { clearBtn.dataset.confirm = ""; clearBtn.textContent = "기록 모두 지우기"; }, 3000); return; }
+    lsSet(LOG_KEY, []); renderLogs(); renderCounts();
+  });
+  list.append(h("div", { class: "rec" },
+    h("div", { class: "stats" },
+      h("span", {}, "대화 ", h("b", { text: String(logs.length) }), "건"),
+      h("span", {}, "질문 ", h("b", { text: String(all.filter((m) => m.role === "user").length) }), "개"),
+      h("span", {}, "AI 답변 ", h("b", { text: String(bots.filter((m) => m.kind === "ai").length) }), "개"),
+      h("span", {}, "즉시 응답 ", h("b", { text: String(bots.filter((m) => m.kind === "data").length) }), "개"),
+      h("span", {}, "👍 ", h("b", { text: String(fbs.filter((f) => f.rating === "good").length) })),
+      h("span", {}, "👎 ", h("b", { text: String(fbs.filter((f) => f.rating === "bad").length) })),
+      h("span", {}, "지침 ", h("b", { text: String(activeRules().length) }), "개")),
+    h("div", { class: "toolbar" }, filterSel, clearBtn)));
+  const show = (m) => logFilter === "all" || (logFilter === "todo" && !fbOf(m.id)) || (logFilter === "bad" && fbOf(m.id)?.rating === "bad") || (logFilter === "ai" && m.kind === "ai");
+  let shown = 0;
+  logs.slice().reverse().forEach((s) => {
+    const pairs = [];
+    let q = "";
+    s.messages.forEach((m) => {
+      if (m.role === "user") { q = m.text; return; }
+      if (show(m)) pairs.push({ q, m });
+    });
+    if (!pairs.length) return;
+    shown++;
+    const card = h("div", { class: "rec" },
+      h("div", { class: "rec-head" }, h("b", { text: `대화 · ${fmtTime(s.startedAt)}` }), h("span", { class: "state", text: `답변 ${s.messages.filter((m) => m.role === "bot").length}개${s.id === SESSION_ID ? " · 지금 대화" : ""}` })));
+    let lastQ = null;
+    pairs.forEach(({ q, m }) => {
+      const pair = h("div", { class: "pair" });
+      if (q && q !== lastQ) pair.append(h("div", { class: "say user" }, h("span", { class: "who", text: "고객" }), h("span", { class: "txt", text: q })));
+      lastQ = q;
+      pair.append(h("div", { class: "say bot" }, h("span", { class: "who", text: "봇" }), h("div", { class: "txt" }, kindBadge(m), m.text)));
+      pair.append(feedbackBox(s.id, m, q));
+      card.append(pair);
+    });
+    list.append(card);
+  });
+  if (!shown) list.append(h("div", { class: "empty", text: logs.length ? "이 조건에 맞는 답변이 없어요." : "아직 저장된 대화가 없어요. 상담 화면에서 질문을 보내면 여기에 쌓여요." }));
+}
+
+/* ---------- 피드백 지침 탭: AI에게 들어가는 지침 관리 ---------- */
+function ruleCard(f, isNew) {
+  const note = h("textarea", { "aria-label": "지침 내용", placeholder: "예) 품절 상품을 물으면 입고 예정일을 먼저 말하고, 대체 상품은 하나만 추천한다" }, f.note || "");
+  const use = h("input", { type: "checkbox" }); use.checked = isNew ? true : !!f.useAsRule;
+  const status = h("span", { class: "saved" });
+  const save = h("button", { type: "button", class: "btn primary", text: isNew ? "지침 추가" : "저장" });
+  const del = h("button", { type: "button", class: "btn " + (isNew ? "" : "danger"), text: isNew ? "취소" : "삭제" });
+  const card = h("div", { class: "rec" + (isNew ? " new" : "") },
+    h("div", { class: "rec-head" },
+      h("b", { text: isNew ? "새 지침 (직접 작성)" : f.question ? "답변 피드백" : "직접 작성한 지침" }),
+      f.rating ? h("span", { class: "kind " + (f.rating === "bad" ? "error" : ""), text: f.rating === "bad" ? "👎 고쳐야 해요" : "👍 좋아요" }) : null,
+      h("span", { class: "state", text: f.updatedAt ? fmtTime(f.updatedAt) : "" })));
+  if (f.question) card.append(h("div", { class: "ctx" }, "고객 질문: ", h("b", { text: clip(f.question, 120) })), h("div", { class: "ctx" }, "그때 답변: ", clip(f.answer, 160)));
+  card.append(h("div", { class: "fb", style: "margin-left:0" }, note,
+    h("div", { class: "fb-row" }, h("label", { class: "chk" }, use, "AI 지침으로 사용"), del, save, status)));
+  const fail = () => { status.textContent = "저장하지 못했어요. 서버가 켜져 있는지 확인해 주세요."; };
+  save.addEventListener("click", async () => {
+    if (!note.value.trim()) { note.focus(); return; }
+    if (isNew) card.remove();   // 저장 후 목록에 다시 그려짐
+    try { await saveFeedback({ ...f, id: f.id || "F" + Date.now().toString(36), note: note.value.trim(), useAsRule: use.checked }); renderRules(); } catch { fail(); }
+  });
+  use.addEventListener("change", async () => { if (!isNew) { try { await saveFeedback({ ...f, useAsRule: use.checked }); renderRules(); } catch { fail(); } } });
+  del.addEventListener("click", async () => {
+    if (isNew) { card.remove(); return; }
+    if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = "정말 삭제"; setTimeout(() => { del.dataset.confirm = ""; del.textContent = "삭제"; }, 3000); return; }
+    try { await deleteFeedback(f.id); renderRules(); renderCounts(); } catch { fail(); }
+  });
+  return card;
+}
+function renderRules() {
+  const list = $("#list");
+  const keep = list.querySelector(".rec.new");
+  list.innerHTML = "";
+  const empty = "아직 사용 중인 지침이 없어요. 대화 기록 탭에서 답변에 피드백을 남기거나 '+ 지침 추가'로 직접 써 보세요.";
+  const preview = h("div", { class: "preview", text: server ? "서버에서 지침을 불러오는 중…" : (guidanceText().trim() || empty) });
+  list.append(h("div", { class: "rec" },
+    h("div", { class: "rec-head" }, h("b", { text: server ? "서버가 AI에게 붙이는 운영자 지침" : "AI에게 전달되는 운영자 지침" }), h("span", { class: "state", text: `${activeRules().length}개 사용 중` })),
+    h("div", { class: "ctx", text: (server ? `피드백은 로컬 서버 파일(${server.file})에 저장되고, AI 요청마다 서버가 아래 지침을 붙여 보내요. 어느 브라우저에서 열어도 같은 지침을 써요. ` : "피드백은 이 브라우저에 저장돼요. ")
+      + "'지침으로 사용'을 켠 피드백 중 최근 30개가, 오래된 것부터 번호가 매겨져 들어가요." }),
+    preview));
+  if (server) fetch("/api/guidance").then((r) => r.json()).then((g) => { preview.textContent = g.text ? g.text.trim() : empty; }).catch(() => { preview.textContent = "서버에 연결하지 못했어요."; });
+  if (keep) list.append(keep);
+  getFeedback().filter((f) => String(f.note || "").trim()).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+    .forEach((f) => list.append(ruleCard(f, false)));
+}
+
+function renderList(force) {
+  renderCounts();
+  if (current === "logs" || current === "rules") {
+    if (force) (current === "logs" ? renderLogs : renderRules)();
+    return;
+  }
+  if (dirty[current] && !force) return;
+  const list = $("#list");
+  const keep = list.querySelector(".rec.new");
+  list.innerHTML = "";
+  if (keep) list.append(keep);
+  const entries = Object.entries(data[current]).sort(([a], [b]) => a.localeCompare(b));
+  if (!entries.length && !keep) list.append(h("div", { class: "empty", text: loaded ? `아직 ${SCHEMA[current].label} 데이터가 없어요. 오른쪽 위 '+ 새로 추가'로 첫 항목을 넣어 보세요.` : "데이터를 불러오는 중이에요…" }));
+  entries.forEach(([id, rec]) => list.append(recordCard(current, id, rec, false)));
+}
+$("#seg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-col]"); if (!b) return;
+  current = b.dataset.col;
+  $("#seg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  $("#addBtn").hidden = current === "logs";
+  $("#addBtn").textContent = current === "rules" ? "+ 지침 추가" : "+ 새로 추가";
+  $("#adminHint").textContent = current === "logs" ? "상담 화면의 모든 대화가 이 브라우저에 저장돼요. 답변마다 평가와 피드백을 남기면 '피드백 지침'으로 모여 다음 AI 답변에 반영돼요."
+    : current === "rules" ? "여기 있는 지침이 AI에게 함께 전달돼요. 끄거나 고치거나 직접 추가할 수 있어요."
+    : "고친 뒤 저장을 누르면 상담원이 바로 새 데이터로 답해요. Ctrl+Shift+A 또는 Esc로 상담 화면으로 돌아가요.";
+  renderList(true);
+});
+$("#addBtn").addEventListener("click", () => {
+  const list = $("#list");
+  if (current === "rules") {
+    if (list.querySelector(".rec.new")) { list.querySelector(".rec.new textarea").focus(); return; }
+    const card = ruleCard({}, true);
+    list.firstElementChild ? list.firstElementChild.after(card) : list.append(card);
+    card.querySelector("textarea").focus();
+    return;
+  }
+  if (list.querySelector(".rec.new")) { list.querySelector(".rec.new input").focus(); return; }
+  $(".empty", list)?.remove();
+  list.prepend(recordCard(current, null, {}, true));
+  list.scrollTop = 0;
+  list.querySelector(".rec.new input").focus();
+});
+function setMode(admin) {
+  $("#chatView").hidden = admin; $("#adminView").hidden = !admin;
+  if (admin) renderList(true); else input.focus();
+}
+$("#exitAdmin").addEventListener("click", () => setMode(false));
+
+// 관리자 진입: Ctrl+Shift+A (맥은 ⌘+Shift+A) → 비밀번호 확인
+// 비밀번호는 원문 대신 SHA-256 값만 페이지에 둠
+const ADMIN_HASH = "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023";
+let unlocked = false, canWrite = null;
+const lock = $("#lock"), lockPw = $("#lockPw"), lockErr = $("#lockErr");
+// SHA-256 직접 계산 (파일로 열어도 동작하도록 브라우저 보안 기능에 의존하지 않음)
+function sha256(text) {
+  const ror = (x, n) => (x >>> n) | (x << (32 - n));
+  const frac = (x) => ((x - Math.floor(x)) * 4294967296) | 0;
+  const H = [], K = [];
+  for (let n = 2, i = 0; i < 64; n++) {
+    let prime = true;
+    for (let f = 2; f * f <= n; f++) if (n % f === 0) { prime = false; break; }
+    if (prime) { if (i < 8) H[i] = frac(Math.pow(n, 1 / 2)); K[i++] = frac(Math.pow(n, 1 / 3)); }
+  }
+  const bytes = new TextEncoder().encode(text);
+  const total = Math.ceil((bytes.length + 9) / 64) * 64;
+  const m = new Uint8Array(total); m.set(bytes); m[bytes.length] = 0x80;
+  const v = new DataView(m.buffer); v.setUint32(total - 4, bytes.length * 8);
+  const W = new Array(64);
+  for (let off = 0; off < total; off += 64) {
+    for (let t = 0; t < 64; t++) {
+      if (t < 16) W[t] = v.getUint32(off + t * 4);
+      else {
+        const s0 = ror(W[t - 15], 7) ^ ror(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+        const s1 = ror(W[t - 2], 17) ^ ror(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+      }
+    }
+    let [a, b, c, d, e, f, g, hh] = H;
+    for (let t = 0; t < 64; t++) {
+      const t1 = (hh + (ror(e, 6) ^ ror(e, 11) ^ ror(e, 25)) + ((e & f) ^ (~e & g)) + K[t] + W[t]) | 0;
+      const t2 = ((ror(a, 2) ^ ror(a, 13) ^ ror(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+      hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    [a, b, c, d, e, f, g, hh].forEach((x, i) => { H[i] = (H[i] + x) | 0; });
+  }
+  return H.map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
+}
+function openLock() { lockPw.value = ""; lockErr.textContent = ""; lock.hidden = false; lockPw.focus(); }
+function closeLock() { lock.hidden = true; }
+$("#lockCancel").addEventListener("click", closeLock);
+lock.addEventListener("click", (e) => { if (e.target === lock) closeLock(); });
+$("#lockForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (sha256(lockPw.value.trim()) !== ADMIN_HASH) { lockErr.textContent = "비밀번호가 맞지 않아요."; lockPw.select(); return; }
+  unlocked = true; closeLock(); setMode(true);
+  if (canWrite === false) $("#adminHint").textContent = "이 계정은 보기만 할 수 있어요. 저장하려면 아티팩트 편집 권한이 필요해요.";
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { if (!lock.hidden) closeLock(); else if (!$("#adminView").hidden) setMode(false); return; }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyA") {   // 한글 입력 상태에서도 동작하도록 e.code 사용
+    e.preventDefault();
+    if (!$("#adminView").hidden) setMode(false);
+    else if (unlocked) setMode(true);
+    else openLock();
+  }
+});
+
+/* =========================================================
+   5) 데이터 연결 — 관리자가 고치면 상담원도 바로 새 데이터를 씀
+   ========================================================= */
+function notice(text) { const n = $("#notice"); n.textContent = text; n.hidden = !text; }
+
+// 파일로 직접 열었을 때 쓰는 내장 데이터 (아티팩트의 공유 데이터와 같은 내용)
+const SEED = {"products":{"P001":{"category":"사료","color":"#d9844a","description":"곡물 없이 연어를 주원료로 만든 전연령 사료. 소화가 예민한 아이에게 좋아요.","emoji":"🦴","name":"연어 그레인프리 강아지 사료 2kg","price":32900,"tags":"강아지,사료,소화"},"P002":{"category":"간식","color":"#c9a227","description":"닭가슴살 100%를 동결건조한 훈련용 간식. 잘게 부숴 급여할 수 있어요.","emoji":"🍗","name":"닭가슴살 동결건조 간식 100g","price":8900,"tags":"강아지,간식,훈련"},"P003":{"category":"목욕·위생","color":"#4aa3c7","description":"약산성 저자극 샴푸. 피부가 예민하거나 각질이 많은 아이용이에요.","emoji":"🧴","name":"저자극 강아지 샴푸 500ml","price":15800,"tags":"강아지,피부,목욕"},"P004":{"category":"장난감","color":"#7a8be0","description":"간식을 숨겨 냄새로 찾는 놀이 담요. 혼자 있는 시간의 스트레스를 줄여 줘요.","emoji":"🧩","name":"노즈워크 담요 M","price":21000,"tags":"강아지,놀이,분리불안"},"P005":{"category":"사료","color":"#e0794f","description":"참치 살코기로 만든 주식 캔 12개 묶음. 물을 잘 안 마시는 고양이의 수분 보충에 좋아요.","emoji":"🐟","name":"참치 습식 캔 80g x12","price":18600,"tags":"고양이,습식,수분"},"P006":{"category":"모래","color":"#9a8f7a","description":"먼지가 적고 변기에 버릴 수 있는 두부 모래. 응고력이 좋아요.","emoji":"🧺","name":"두부 모래 7L","price":12900,"tags":"고양이,모래,변기"},"P007":{"category":"장난감","color":"#b07a4f","description":"높이 80cm 사이잘 마감 스크래쳐 겸 미니 캣타워. 발톱 관리와 운동을 함께 해요.","emoji":"🐈","name":"사이잘 스크래쳐 타워","price":39000,"tags":"고양이,스크래쳐,캣타워"},"P008":{"category":"간식","color":"#e06a8a","description":"짜 먹이는 연어 퓨레 간식 20개입. 약 먹일 때 섞어 주기 좋아요.","emoji":"🍣","name":"츄르형 연어 간식 20개입","price":11500,"tags":"고양이,간식,수분"},"P009":{"category":"생활용품","color":"#6aa88a","description":"커버를 벗겨 세탁기에 돌릴 수 있는 순면 방석. 중대형견과 고양이 모두 쓸 수 있어요.","emoji":"🛏️","name":"순면 방석 L","price":27900,"tags":"공용,방석,세탁"},"P010":{"category":"생활용품","color":"#3d8fd6","description":"흐르는 물로 음수량을 늘려 주는 저소음 급수기. 필터는 한 달마다 바꿔 주세요.","emoji":"💧","name":"자동 급수기 2L","price":34500,"tags":"공용,급수,필터"},"P011":{"name":"소고기 저알러지 강아지 사료 5kg","category":"사료","price":54900,"tags":"강아지,사료,알러지","emoji":"🥩","color":"#b5523b","description":"단일 단백질 소고기로 만든 저알러지 사료. 닭고기 알러지가 있는 아이에게 맞아요."},"P012":{"name":"실내묘 헤어볼 케어 사료 2kg","category":"사료","price":29800,"tags":"고양이,사료,헤어볼","emoji":"🐱","color":"#8f6fc4","description":"식이섬유를 늘려 헤어볼 배출을 돕는 실내묘 전용 사료."},"P013":{"name":"오리 목뼈 덴탈껌 10개입","category":"간식","price":9900,"tags":"강아지,간식,치석","emoji":"🦆","color":"#c98b3a","description":"씹는 동안 치석 관리를 돕는 오리 목뼈 덴탈껌."},"P014":{"name":"북어 트릿 50g","category":"간식","price":6500,"tags":"고양이,간식","emoji":"🐠","color":"#d4a24a","description":"무염 북어를 한입 크기로 말린 고양이 간식."},"P015":{"name":"고양이 칫솔·치약 세트","category":"목욕·위생","price":13900,"tags":"고양이,치석,양치","emoji":"🪥","color":"#5aa9c9","description":"손가락 칫솔과 닭고기 맛 치약 세트. 양치를 처음 시작하는 고양이용이에요."},"P016":{"name":"강아지 귀 세정제 120ml","category":"목욕·위생","price":11800,"tags":"강아지,귀,위생","emoji":"👂","color":"#4fb0a5","description":"귀지를 부드럽게 녹이는 저자극 귀 세정제."},"P017":{"name":"배변패드 대형 50매","category":"생활용품","price":19900,"tags":"강아지,배변","emoji":"🧻","color":"#8aa7c9","description":"5겹 흡수층으로 새지 않는 대형 배변패드 50매."},"P018":{"name":"벤토나이트 고양이 모래 10kg","category":"모래","price":15900,"tags":"고양이,모래,응고","emoji":"🏖️","color":"#b8a27a","description":"응고력이 강하고 먼지가 적은 벤토나이트 모래."},"P019":{"name":"삑삑이 라텍스 공 3종","category":"장난감","price":8800,"tags":"강아지,놀이","emoji":"🎾","color":"#8cc04a","description":"소리 나는 말랑한 라텍스 공 3개 세트."},"P020":{"name":"깃털 낚싯대 장난감","category":"장난감","price":7500,"tags":"고양이,놀이,사냥","emoji":"🪶","color":"#c46fa8","description":"사냥 본능을 깨우는 깃털 낚싯대. 리필 깃털 2개 포함."},"P021":{"name":"반자동 리드줄 5m","category":"산책용품","price":24900,"tags":"강아지,산책","emoji":"🦮","color":"#3f7fbf","description":"버튼 하나로 길이를 고정하는 5m 자동 리드줄. 15kg 이하용."},"P022":{"name":"소프트 하네스 S/M/L","category":"산책용품","price":22900,"tags":"강아지,산책,하네스","emoji":"🎽","color":"#e07a5f","description":"목에 부담을 덜어 주는 메시 소재 하네스."},"P023":{"name":"고양이 캐리어 백팩","category":"산책용품","price":49000,"tags":"고양이,이동,병원","emoji":"🎒","color":"#6b7fd1","description":"통풍창이 있는 백팩형 캐리어. 병원 갈 때 좋아요. 8kg 이하용."},"P024":{"name":"관절 영양제 글루코사민 60정","category":"건강·영양제","price":32000,"tags":"강아지,관절,노령","emoji":"💊","color":"#5fae7a","description":"글루코사민과 콘드로이틴이 든 노령견 관절 영양제."},"P025":{"name":"고양이 유산균 30포","category":"건강·영양제","price":26500,"tags":"고양이,장건강","emoji":"🧪","color":"#74b7a0","description":"사료에 뿌려 주는 고양이 전용 유산균. 무른 변이 잦은 아이에게 좋아요."},"P026":{"name":"오메가3 피모 영양제 100ml","category":"건강·영양제","price":28900,"tags":"공용,피모,피부","emoji":"✨","color":"#4a9bd1","description":"털 윤기와 피부 건강을 돕는 오메가3 오일. 강아지·고양이 함께 먹어요."},"P027":{"name":"겨울 패딩 조끼 M","category":"의류","price":29900,"tags":"강아지,의류,보온","emoji":"🧥","color":"#c75b5b","description":"가볍고 따뜻한 강아지 패딩 조끼. 하네스 구멍이 있어요."},"P028":{"name":"쿨링 매트 L","category":"생활용품","price":21900,"tags":"공용,여름,매트","emoji":"❄️","color":"#64b5d9","description":"전기 없이 시원한 젤 쿨링 매트."},"P029":{"name":"높이 조절 원목 식기 스탠드","category":"생활용품","price":31900,"tags":"공용,식기,관절","emoji":"🍽️","color":"#a37b52","description":"목과 관절 부담을 줄이는 3단 높이 조절 식기 스탠드."},"P030":{"name":"고양이 숨숨집 쿠션","category":"생활용품","price":35900,"tags":"고양이,숨숨집,방석","emoji":"🏠","color":"#9a86c9","description":"포근한 동굴형 숨숨집. 쿠션을 빼서 세탁할 수 있어요."}},"inventory":{"P001":{"restockDate":"","stock":42,"warehouse":"이천 물류센터"},"P002":{"restockDate":"2026-11-20","stock":8,"warehouse":"이천 물류센터"},"P003":{"restockDate":"2026-11-21","stock":0,"warehouse":"이천 물류센터"},"P004":{"restockDate":"","stock":15,"warehouse":"김포 물류센터"},"P005":{"restockDate":"","stock":60,"warehouse":"김포 물류센터"},"P006":{"restockDate":"","stock":120,"warehouse":"이천 물류센터"},"P007":{"restockDate":"2026-11-25","stock":3,"warehouse":"김포 물류센터"},"P008":{"restockDate":"2026-11-19","stock":0,"warehouse":"김포 물류센터"},"P009":{"restockDate":"","stock":25,"warehouse":"이천 물류센터"},"P010":{"restockDate":"","stock":11,"warehouse":"이천 물류센터"},"P011":{"stock":18,"warehouse":"이천 물류센터","restockDate":""},"P012":{"stock":34,"warehouse":"김포 물류센터","restockDate":""},"P013":{"stock":0,"warehouse":"이천 물류센터","restockDate":"2026-11-24"},"P014":{"stock":52,"warehouse":"김포 물류센터","restockDate":""},"P015":{"stock":22,"warehouse":"김포 물류센터","restockDate":""},"P016":{"stock":9,"warehouse":"이천 물류센터","restockDate":""},"P017":{"stock":85,"warehouse":"이천 물류센터","restockDate":""},"P018":{"stock":40,"warehouse":"이천 물류센터","restockDate":""},"P019":{"stock":46,"warehouse":"김포 물류센터","restockDate":""},"P020":{"stock":0,"warehouse":"김포 물류센터","restockDate":"2026-11-19"},"P021":{"stock":13,"warehouse":"이천 물류센터","restockDate":""},"P022":{"stock":27,"warehouse":"이천 물류센터","restockDate":""},"P023":{"stock":4,"warehouse":"김포 물류센터","restockDate":"2026-11-28"},"P024":{"stock":19,"warehouse":"이천 물류센터","restockDate":""},"P025":{"stock":31,"warehouse":"김포 물류센터","restockDate":""},"P026":{"stock":15,"warehouse":"이천 물류센터","restockDate":""},"P027":{"stock":12,"warehouse":"김포 물류센터","restockDate":""},"P028":{"stock":0,"warehouse":"이천 물류센터","restockDate":"2026-12-02"},"P029":{"stock":16,"warehouse":"김포 물류센터","restockDate":""},"P030":{"stock":8,"warehouse":"김포 물류센터","restockDate":""}},"orders":{"ORD-1001":{"customer":"김하린","items":"P001 x1, P002 x2","orderedAt":"2026-11-08","phoneLast4":"1234","status":"배송완료","total":50700},"ORD-1002":{"customer":"이준서","items":"P006 x2","orderedAt":"2026-11-10","phoneLast4":"5678","status":"배송완료","total":28800},"ORD-1003":{"customer":"박서연","items":"P007 x1","orderedAt":"2026-11-13","phoneLast4":"2468","status":"배송중","total":39000},"ORD-1004":{"customer":"최민재","items":"P005 x1, P008 x2","orderedAt":"2026-11-14","phoneLast4":"1357","status":"배송중","total":41600},"ORD-1005":{"customer":"정유나","items":"P004 x1, P009 x1","orderedAt":"2026-11-14","phoneLast4":"9090","status":"배송중","total":48900},"ORD-1006":{"customer":"강도윤","items":"P010 x1","orderedAt":"2026-11-15","phoneLast4":"3141","status":"상품준비중","total":34500},"ORD-1007":{"customer":"윤지아","items":"P003 x2","orderedAt":"2026-11-15","phoneLast4":"2718","status":"상품준비중","total":31600},"ORD-1008":{"customer":"임태오","items":"P002 x3","orderedAt":"2026-11-16","phoneLast4":"4321","status":"결제완료","total":29700},"ORD-1009":{"customer":"한서진","items":"P001 x2","orderedAt":"2026-11-16","phoneLast4":"8765","status":"결제완료","total":65800},"ORD-1010":{"customer":"송민지","items":"P006 x1, P005 x1","orderedAt":"2026-11-11","phoneLast4":"1122","status":"배송완료","total":31500},"ORD-1011":{"customer":"김도현","phoneLast4":"4821","orderedAt":"2026-11-01","status":"배송완료","total":74700,"items":"P011 x1, P013 x2"},"ORD-1012":{"customer":"이서윤","phoneLast4":"7305","orderedAt":"2026-11-02","status":"배송완료","total":49300,"items":"P012 x1, P014 x3"},"ORD-1013":{"customer":"박지호","phoneLast4":"1948","orderedAt":"2026-11-03","status":"배송완료","total":39800,"items":"P017 x2"},"ORD-1014":{"customer":"최예린","phoneLast4":"6620","orderedAt":"2026-11-04","status":"취소","total":49000,"items":"P023 x1"},"ORD-1015":{"customer":"정민준","phoneLast4":"3087","orderedAt":"2026-11-05","status":"배송완료","total":33700,"items":"P021 x1, P019 x1"},"ORD-1016":{"customer":"강하은","phoneLast4":"5512","orderedAt":"2026-11-06","status":"배송완료","total":58300,"items":"P018 x2, P025 x1"},"ORD-1017":{"customer":"조시우","phoneLast4":"8834","orderedAt":"2026-11-07","status":"배송완료","total":32000,"items":"P024 x1"},"ORD-1018":{"customer":"윤채원","phoneLast4":"2209","orderedAt":"2026-11-09","status":"배송완료","total":35900,"items":"P030 x1"},"ORD-1019":{"customer":"장우진","phoneLast4":"9471","orderedAt":"2026-11-10","status":"배송완료","total":40700,"items":"P022 x1, P002 x2"},"ORD-1020":{"customer":"임수아","phoneLast4":"6158","orderedAt":"2026-11-11","status":"배송완료","total":28400,"items":"P015 x1, P008 x1"},"ORD-1021":{"customer":"한지율","phoneLast4":"3390","orderedAt":"2026-11-12","status":"배송완료","total":31900,"items":"P026 x1"},"ORD-1022":{"customer":"오태민","phoneLast4":"7742","orderedAt":"2026-11-13","status":"배송중","total":41700,"items":"P027 x1, P016 x1"},"ORD-1023":{"customer":"서다인","phoneLast4":"1205","orderedAt":"2026-11-13","status":"취소","total":24900,"items":"P028 x1"},"ORD-1024":{"customer":"신재희","phoneLast4":"8563","orderedAt":"2026-11-14","status":"배송중","total":64900,"items":"P001 x1, P024 x1"},"ORD-1025":{"customer":"권나연","phoneLast4":"4096","orderedAt":"2026-11-14","status":"배송중","total":37200,"items":"P005 x2"},"ORD-1026":{"customer":"황준영","phoneLast4":"2674","orderedAt":"2026-11-15","status":"배송중","total":31900,"items":"P029 x1"},"ORD-1027":{"customer":"안소율","phoneLast4":"5931","orderedAt":"2026-11-15","status":"상품준비중","total":24500,"items":"P020 x2, P014 x1"},"ORD-1028":{"customer":"송건우","phoneLast4":"8027","orderedAt":"2026-11-15","status":"상품준비중","total":47800,"items":"P009 x1, P017 x1"},"ORD-1029":{"customer":"전하린","phoneLast4":"3648","orderedAt":"2026-11-16","status":"결제완료","total":59600,"items":"P012 x2"},"ORD-1030":{"customer":"홍유찬","phoneLast4":"9152","orderedAt":"2026-11-16","status":"결제완료","total":38600,"items":"P019 x2, P004 x1"}},"shipments":{"S001":{"carrier":"한빛택배","eta":"2026-11-10","events":"11-10 13:42 | 서울 마포 | 배송 완료 (문 앞)\n11-10 08:10 | 서울 마포 | 배송 출발\n11-09 22:30 | 옥천 HUB | 간선 이동\n11-08 17:05 | 이천 물류센터 | 집하 완료","orderId":"ORD-1001","status":"배송완료","trackingNo":"564011230011"},"S002":{"carrier":"누리로지스","eta":"2026-11-12","events":"11-12 15:20 | 인천 연수 | 배송 완료 (경비실)\n11-12 09:00 | 인천 연수 | 배송 출발\n11-11 21:40 | 군포 HUB | 간선 이동\n11-10 18:30 | 이천 물류센터 | 집하 완료","orderId":"ORD-1002","status":"배송완료","trackingNo":"712300450022"},"S003":{"carrier":"한빛택배","eta":"2026-11-16","events":"11-16 07:50 | 경기 수원 | 배송 출발\n11-15 23:10 | 옥천 HUB | 간선 이동\n11-14 16:40 | 김포 물류센터 | 집하 완료","orderId":"ORD-1003","status":"배송출발","trackingNo":"564011230033"},"S004":{"carrier":"누리로지스","eta":"2026-11-17","events":"11-16 02:15 | 군포 HUB | 간선 이동\n11-15 17:30 | 김포 물류센터 | 집하 완료","orderId":"ORD-1004","status":"간선이동","trackingNo":"712300450044"},"S005":{"carrier":"한빛택배","eta":"2026-11-17","events":"11-15 18:10 | 김포 물류센터 | 집하 완료\n11-15 11:00 | 포근펫 | 상품 포장 완료","orderId":"ORD-1005","status":"집하완료","trackingNo":"564011230055"},"S006":{"carrier":"한빛택배","eta":"2026-11-18","events":"11-16 09:30 | 이천 물류센터 | 출고 준비 중","orderId":"ORD-1006","status":"집하대기","trackingNo":"564011230066"},"S007":{"carrier":"누리로지스","eta":"입고 후 안내 (11-21 입고 예정)","events":"11-15 19:20 | 이천 물류센터 | 상품 입고 대기","orderId":"ORD-1007","status":"집하대기","trackingNo":"712300450077"},"S008":{"carrier":"한빛택배","eta":"2026-11-18","events":"11-16 10:05 | 포근펫 | 결제 확인","orderId":"ORD-1008","status":"집하대기","trackingNo":"564011230088"},"S009":{"carrier":"누리로지스","eta":"2026-11-18","events":"11-16 11:30 | 포근펫 | 결제 확인","orderId":"ORD-1009","status":"집하대기","trackingNo":"712300450099"},"S010":{"carrier":"한빛택배","eta":"2026-11-13","events":"11-13 12:05 | 경기 고양 | 배송 완료 (문 앞)\n11-13 08:20 | 경기 고양 | 배송 출발\n11-12 23:50 | 옥천 HUB | 간선 이동\n11-11 17:45 | 이천 물류센터 | 집하 완료","orderId":"ORD-1010","status":"배송완료","trackingNo":"564011230100"},"S011":{"orderId":"ORD-1011","carrier":"한빛택배","trackingNo":"564011230111","status":"배송완료","eta":"2026-11-03","events":"11-03 13:21 | 서울 송파 | 배송 완료 (문 앞)\n11-03 08:16 | 서울 송파 | 배송 출발\n11-02 22:21 | 옥천 HUB | 간선 이동\n11-01 17:41 | 이천 물류센터 | 집하 완료"},"S012":{"orderId":"ORD-1012","carrier":"누리로지스","trackingNo":"712300450112","status":"배송완료","eta":"2026-11-04","events":"11-04 13:22 | 경기 성남 | 배송 완료 (문 앞)\n11-04 08:17 | 경기 성남 | 배송 출발\n11-03 22:22 | 옥천 HUB | 간선 이동\n11-02 17:42 | 김포 물류센터 | 집하 완료"},"S013":{"orderId":"ORD-1013","carrier":"한빛택배","trackingNo":"564011230113","status":"배송완료","eta":"2026-11-05","events":"11-05 13:23 | 부산 해운대 | 배송 완료 (문 앞)\n11-05 08:18 | 부산 해운대 | 배송 출발\n11-04 22:23 | 옥천 HUB | 간선 이동\n11-03 17:43 | 이천 물류센터 | 집하 완료"},"S014":{"orderId":"ORD-1015","carrier":"누리로지스","trackingNo":"712300450115","status":"배송완료","eta":"2026-11-07","events":"11-07 13:25 | 대전 유성 | 배송 완료 (문 앞)\n11-07 08:20 | 대전 유성 | 배송 출발\n11-06 22:25 | 옥천 HUB | 간선 이동\n11-05 17:45 | 김포 물류센터 | 집하 완료"},"S015":{"orderId":"ORD-1016","carrier":"한빛택배","trackingNo":"564011230116","status":"배송완료","eta":"2026-11-08","events":"11-08 13:26 | 인천 남동 | 배송 완료 (문 앞)\n11-08 08:21 | 인천 남동 | 배송 출발\n11-07 22:26 | 옥천 HUB | 간선 이동\n11-06 17:46 | 이천 물류센터 | 집하 완료"},"S016":{"orderId":"ORD-1017","carrier":"누리로지스","trackingNo":"712300450117","status":"배송완료","eta":"2026-11-09","events":"11-09 13:27 | 서울 강서 | 배송 완료 (문 앞)\n11-09 08:22 | 서울 강서 | 배송 출발\n11-08 22:27 | 옥천 HUB | 간선 이동\n11-07 17:47 | 김포 물류센터 | 집하 완료"},"S017":{"orderId":"ORD-1018","carrier":"한빛택배","trackingNo":"564011230118","status":"배송완료","eta":"2026-11-11","events":"11-11 13:28 | 광주 북구 | 배송 완료 (문 앞)\n11-11 08:23 | 광주 북구 | 배송 출발\n11-10 22:28 | 옥천 HUB | 간선 이동\n11-09 17:48 | 이천 물류센터 | 집하 완료"},"S018":{"orderId":"ORD-1019","carrier":"누리로지스","trackingNo":"712300450119","status":"배송완료","eta":"2026-11-12","events":"11-12 13:29 | 경기 용인 | 배송 완료 (문 앞)\n11-12 08:24 | 경기 용인 | 배송 출발\n11-11 22:29 | 옥천 HUB | 간선 이동\n11-10 17:49 | 김포 물류센터 | 집하 완료"},"S019":{"orderId":"ORD-1020","carrier":"한빛택배","trackingNo":"564011230120","status":"배송완료","eta":"2026-11-13","events":"11-13 13:30 | 대구 수성 | 배송 완료 (문 앞)\n11-13 08:25 | 대구 수성 | 배송 출발\n11-12 22:30 | 옥천 HUB | 간선 이동\n11-11 17:20 | 이천 물류센터 | 집하 완료"},"S020":{"orderId":"ORD-1021","carrier":"누리로지스","trackingNo":"712300450121","status":"배송완료","eta":"2026-11-14","events":"11-14 13:31 | 서울 노원 | 배송 완료 (문 앞)\n11-14 08:26 | 서울 노원 | 배송 출발\n11-13 22:31 | 옥천 HUB | 간선 이동\n11-12 17:21 | 김포 물류센터 | 집하 완료"},"S021":{"orderId":"ORD-1022","carrier":"한빛택배","trackingNo":"564011230122","status":"배송출발","eta":"2026-11-16","events":"11-16 07:52 | 경기 파주 | 배송 출발\n11-14 23:32 | 옥천 HUB | 간선 이동\n11-13 17:22 | 이천 물류센터 | 집하 완료"},"S022":{"orderId":"ORD-1024","carrier":"누리로지스","trackingNo":"712300450124","status":"간선이동","eta":"2026-11-17","events":"11-16 01:34 | 옥천 HUB | 간선 이동\n11-14 17:24 | 김포 물류센터 | 집하 완료"},"S023":{"orderId":"ORD-1025","carrier":"한빛택배","trackingNo":"564011230125","status":"집하완료","eta":"2026-11-17","events":"11-14 17:25 | 이천 물류센터 | 집하 완료"},"S024":{"orderId":"ORD-1026","carrier":"누리로지스","trackingNo":"712300450126","status":"집하완료","eta":"2026-11-17","events":"11-15 17:26 | 김포 물류센터 | 집하 완료"},"S025":{"orderId":"ORD-1027","carrier":"한빛택배","trackingNo":"564011230127","status":"집하대기","eta":"2026-11-18","events":"11-16 13:37 | 포근펫 | 결제 확인"},"S026":{"orderId":"ORD-1028","carrier":"누리로지스","trackingNo":"712300450128","status":"집하대기","eta":"2026-11-18","events":"11-16 10:38 | 포근펫 | 결제 확인"},"S027":{"orderId":"ORD-1029","carrier":"한빛택배","trackingNo":"564011230129","status":"집하대기","eta":"2026-11-18","events":"11-16 11:39 | 포근펫 | 결제 확인"},"S028":{"orderId":"ORD-1030","carrier":"누리로지스","trackingNo":"712300450130","status":"집하대기","eta":"2026-11-18","events":"11-16 12:40 | 포근펫 | 결제 확인"}}};
+
+// 파일 모드용 저장소: 관리자에서 고친 내용은 이 브라우저(localStorage)에만 저장됨
+function localDb() {
+  const KEY = "pogeunpet.data.v1";
+  const fresh = () => JSON.parse(JSON.stringify(SEED));
+  let store = null;
+  try { store = JSON.parse(localStorage.getItem(KEY)); } catch {}
+  if (!store || typeof store !== "object") store = fresh();
+  const subs = {};
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch {} };
+  const emit = (c) => (subs[c] || []).forEach((fn) => fn({
+    docs: Object.entries(store[c] || {}).map(([id, d]) => ({ id, data: () => d })), metadata: { fromCache: false } }));
+  return {
+    collection: (c) => ({ onSnapshot(next) { (subs[c] ||= []).push(next); setTimeout(() => emit(c)); return () => {}; } }),
+    doc(path) {
+      const [c, id] = path.split("/");
+      return {
+        async set(body) { (store[c] ||= {})[id] = body; save(); emit(c); },
+        async delete() { if (store[c]) delete store[c][id]; save(); emit(c); },
+      };
+    },
+    reset() { store = fresh(); save(); COLS.forEach(emit); },
+  };
+}
+
+let offline = false;
+(async () => {
+  const [cloudDb, user, sample] = await Promise.all([cap("db"), cap("user"), cap("sample")]);
+  let db = cloudDb;
+  if (!db) {
+    offline = true;
+    db = localDb();
+    notice("파일 모드: 데이터는 이 브라우저에만 저장되고, 자유 질문은 AI 대신 정해진 안내로 답해요. Claude 아티팩트 링크로 열면 AI 상담이 켜져요.");
+    const reset = h("button", { type: "button", class: "btn", text: "예시 데이터로 되돌리기" });
+    reset.addEventListener("click", () => {
+      if (reset.dataset.confirm !== "1") { reset.dataset.confirm = "1"; reset.textContent = "정말 되돌리기"; setTimeout(() => { reset.dataset.confirm = ""; reset.textContent = "예시 데이터로 되돌리기"; }, 3000); return; }
+      Object.keys(dirty).forEach((k) => (dirty[k] = false));
+      db.reset(); reset.dataset.confirm = ""; reset.textContent = "예시 데이터로 되돌리기";
+    });
+    $(".admin-bar").append(reset);
+
+    // 로컬 서버(serve.cjs)로 열렸는지 확인 → 서버 모드: 피드백은 서버 파일에, AI 요청은 서버를 거쳐 지침이 붙음
+    if (/^https?:$/.test(location.protocol)) {
+      try {
+        const r = await fetch("/api/health", { cache: "no-store" });
+        const info = r.ok ? await r.json() : null;
+        if (info?.ok) {
+          server = info;
+          fbCache = await (await fetch("/api/feedback", { cache: "no-store" })).json();
+          const local = lsGet(FB_KEY, []);
+          if (!fbCache.length && local.length) await fbRequest("POST", "/api/feedback", local);   // 브라우저에 있던 피드백을 처음 한 번 서버로 옮김
+        }
+      } catch { server = null; }
+    }
+
+    // AI 키 설정 (파일 모드에서만): 키를 넣으면 자유 질문에 Claude가 답함
+    const keyInput = h("input", { type: "password", id: "apiKey", placeholder: "sk-ant- 로 시작하는 Claude API 키", autocomplete: "off" });
+    const keyState = h("span", { class: "key-state" });
+    const fileNotice = () => notice(server
+      ? (getKey() || server.serverKey
+        ? "로컬 서버 모드 · AI 연결됨: 피드백은 서버에 저장되고, 서버가 운영자 지침을 붙여 Claude에 물어봐요."
+        : "로컬 서버 모드: 피드백은 서버에 저장돼요. 관리자 화면에서 API 키를 넣으면 AI 상담이 켜져요.")
+      : getKey()
+        ? "파일 모드 · AI 연결됨: 데이터는 이 브라우저에만 저장되고, 자유 질문은 내 API 키로 Claude가 답해요."
+        : "파일 모드: 데이터는 이 브라우저에만 저장되고, 자유 질문은 AI 대신 정해진 안내로 답해요. 관리자 화면에서 API 키를 넣으면 AI 상담이 켜져요.");
+    const showKeyState = () => { const k = getKey(); keyState.textContent = k ? `저장됨 (…${k.slice(-4)})` : server?.serverKey ? "서버에 설정된 키를 사용 중" : "저장된 키 없음"; fileNotice(); };
+    const keyBox = h("div", { class: "keybox" },
+      h("label", { for: "apiKey" }, "Claude API 키 · 이 브라우저에만 저장돼요"),
+      h("div", { class: "keyrow" }, keyInput,
+        h("button", { type: "button", class: "btn primary", text: "저장", onclick: () => { const v = keyInput.value.trim(); if (!v) { keyInput.focus(); return; } setKey(v); keyInput.value = ""; showKeyState(); } }),
+        h("button", { type: "button", class: "btn", text: "지우기", onclick: () => { setKey(""); showKeyState(); } })),
+      keyState);
+    $("#adminHint").after(keyBox);
+    showKeyState();
+  } else if (!sample) offline = true;
+  dbRef = db;
+  canWrite = cloudDb ? (user ? await user.canEdit() : false) : true;
+  const fresh = new Set();
+  const timer = setTimeout(() => { if (fresh.size < COLS.length) notice("상점 데이터를 아직 불러오지 못했어요. 연결을 확인해 주세요."); }, 10000);
+  COLS.forEach((col) => {
+    db.collection(col).onSnapshot((snap) => {
+      const next = {};
+      snap.docs.forEach((d) => { next[d.id] = d.data(); });
+      data[col] = next;
+      if (!snap.metadata.fromCache) fresh.add(col);
+      if (fresh.size === COLS.length) { clearTimeout(timer); if (cloudDb) notice(""); }
+      loaded = true;
+      if (!$("#adminView").hidden && (col === current || col === "products")) renderList(false); else renderCounts();
+    }, () => { clearTimeout(timer); notice("상점 데이터를 불러오지 못했어요. 페이지를 다시 열어 주세요."); });
+  });
+})();
+</script>
+</body>
+</html>

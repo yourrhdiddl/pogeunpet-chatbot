@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>포근펫 AI 상담 챗봇 기능 테스트 보고서</title>
+<style>
+  /* A4 세로, 내용 폭 178mm. 기능 카드(설명 + 화면)는 페이지 경계에서 쪼개지지 않게 */
+  @page { size: A4; margin: 15mm 16mm 16mm; }
+  :root { --ink: #17191f; --sub: #555b69; --line: #dfe2ea; --soft: #f4f6fa; --blue: #2f6fe4; --ok: #1f8a4c; --ok-soft: #e5f4eb; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font-family: "Pretendard", "Pretendard Variable", sans-serif; color: var(--ink); font-size: 9.6pt; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+  .page { max-width: 178mm; margin: 0 auto; }
+  h1 { font-size: 19pt; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-size: 12.5pt; font-weight: 700; margin: 0 0 7px; padding-bottom: 5px; border-bottom: 1.5px solid var(--ink); break-after: avoid; }
+  p { margin: 0 0 6px; }
+  section { margin-top: 14px; }
+  .meta { color: var(--sub); font-size: 9pt; }
+  .lead { font-size: 10.5pt; margin: 10px 0 8px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; break-inside: avoid; }
+  .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; }
+  .kpi .v { font-size: 16pt; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .kpi .v small { font-size: 9.5pt; font-weight: 600; color: var(--sub); }
+  .kpi .k { font-size: 8.3pt; color: var(--sub); margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.7pt; line-height: 1.45; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th { background: var(--soft); text-align: left; font-weight: 600; color: var(--sub); padding: 5px 6px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 4.5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.id { font-weight: 600; white-space: nowrap; }
+  td.fn { white-space: nowrap; font-weight: 600; }
+  td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .env td:first-child { width: 24mm; color: var(--sub); white-space: nowrap; }
+  code { font-family: "Pretendard", sans-serif; background: var(--soft); border-radius: 4px; padding: 0 4px; }
+  .pass { display: inline-block; font-size: 7.8pt; font-weight: 600; color: var(--ok); background: var(--ok-soft); border-radius: 99px; padding: 1px 7px; white-space: nowrap; }
+  .note { font-size: 8.5pt; color: var(--sub); margin-top: 6px; }
+
+  /* 기능 카드 */
+  .feature { break-inside: avoid; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; margin-top: 10px; display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+  .feature + .feature { margin-top: 9px; }
+  .f-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .f-head { display: flex; align-items: baseline; gap: 8px; }
+  .f-no { font-size: 9pt; font-weight: 700; color: var(--blue); white-space: nowrap; }
+  .f-title { font-size: 11.5pt; font-weight: 700; }
+  .f-head .pass { margin-left: auto; }
+  .f-desc { color: var(--sub); font-size: 9pt; }
+  dl.f { display: grid; grid-template-columns: 13mm 1fr; gap: 4px 8px; margin: 0; font-size: 9pt; }
+  dl.f dt { color: var(--sub); }
+  dl.f dd { margin: 0; }
+  .shots { display: flex; gap: 8px; align-items: flex-start; }
+  figure { margin: 0; width: 40mm; }
+  figure img { display: block; width: 40mm; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+  .shots figure:only-child, .shots figure:only-child img { width: 50mm; }
+  figcaption { font-size: 7.8pt; color: var(--sub); text-align: center; margin-top: 3px; line-height: 1.35; }
+  .pb { break-before: page; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>포근펫 AI 상담 챗봇 기능 테스트 보고서</h1>
+    <div class="meta">테스트일 2026년 11월 16일 · 테스트 환경 로컬 서버 http://localhost:5501 · 화면은 모두 테스트 중 실제 화면을 캡처</div>
+  </header>
+
+  <p class="lead">상담 기능 6개와 관리자·피드백 기능 4개, <b>모두 10개 기능이 통과</b>했습니다. 관리자가 남긴 피드백이 서버를 거쳐 다음 AI 답변에 반영되는 것까지 실제 화면으로 확인했습니다.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">10<small>/10</small></div><div class="k">기능 통과</div></div>
+    <div class="kpi"><div class="v">0.00<small>초</small></div><div class="k">주문·재고·추천 즉시 응답</div></div>
+    <div class="kpi"><div class="v">0.8~3.5<small>초</small></div><div class="k">AI 첫 글자까지</div></div>
+    <div class="kpi"><div class="v">13<small>장</small></div><div class="k">기능별 화면 캡처</div></div>
+  </div>
+
+  <section>
+    <h2>테스트 환경</h2>
+    <table class="env">
+      <tbody>
+        <tr><td>대상</td><td><code>chatbot-tabs/pet-shop-chat.html</code>, 로컬 서버 <code>chatbot-tabs/serve.cjs</code></td></tr>
+        <tr><td>실행 방식</td><td>로컬 서버 모드: 상점 데이터는 브라우저, 피드백은 서버 파일 <code>data/feedback.json</code>에 저장</td></tr>
+        <tr><td>AI</td><td>Claude Opus 5.5, 서버가 운영자 지침을 붙여 호출</td></tr>
+        <tr><td>화면 크기</td><td>휴대폰 화면(390×760)으로 캡처</td></tr>
+        <tr><td>데이터</td><td>가상 데이터: 상품 30 · 재고 30 · 주문 30 · 배송 28건</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>기능별 결과 요약</h2>
+    <table>
+      <thead><tr><th>#</th><th>기능</th><th>시험 내용</th><th>응답</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td class="id">1</td><td class="fn">상담 첫 화면</td><td>서버 모드 감지, 인사말, 빠른 메뉴 표시</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">2</td><td class="fn">주문·운송장 조회</td><td>주문번호·운송장 번호로 주문 카드와 배송 이력 조회</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">3</td><td class="fn">재고 확인</td><td>카테고리 → 상품 2단계 선택, 재고 카드</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">4</td><td class="fn">상품 추천</td><td>반려동물 선택 후 추천 목록</td><td class="num">0.00초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">5</td><td class="fn">AI 답변 · 말풍선 나누기</td><td>긴 질문에 데이터 기반 답변, 여러 말풍선으로 나눔</td><td class="num">2.6초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">6</td><td class="fn">주제 밖 거절</td><td>쇼핑과 관계없는 질문 거절</td><td class="num">0.8초</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">7</td><td class="fn">관리자 로그인 · 데이터 편집</td><td>단축키 + 비밀번호 진입, 상품 데이터 편집 화면</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">8</td><td class="fn">대화 기록 · 피드백</td><td>대화 기록 확인, 답변에 평가와 피드백 저장</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">9</td><td class="fn">피드백 지침 (서버)</td><td>서버가 AI에 붙이는 지침 미리보기</td><td class="num">-</td><td><span class="pass">통과</span></td></tr>
+        <tr><td class="id">10</td><td class="fn">지침 반영</td><td>피드백 후 다른 품절 상품 질문에 지침대로 답변</td><td class="num">2.1초</td><td><span class="pass">통과</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">응답은 질문을 보낸 순간부터 첫 글자가 보일 때까지의 시간입니다. 화면 캡처 과정에서 AI 답변을 4회 받았습니다.</p>
+  </section>
+
+  <!-- ===== 기능 카드 ===== -->
+  <section>
+    <h2>기능별 상세 · 상담 화면</h2>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 1</span><span class="f-title">상담 첫 화면</span><span class="pass">통과</span></div>
+        <p class="f-desc">페이지를 열면 로컬 서버를 감지해 동작 방식을 알려 주고, 인사말과 빠른 메뉴를 보여 줍니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>http://localhost:5501 접속</dd>
+          <dt>기대</dt><dd>서버 모드 안내, 인사말, 빠른 메뉴 4개(주문 조회·배송 조회·재고 확인·상품 추천)</dd>
+          <dt>결과</dt><dd>"로컬 서버 모드 · AI 연결됨" 안내가 뜨고, 인사말과 메뉴가 표시됨</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f01-home.png" alt="상담 첫 화면"><figcaption>첫 화면</figcaption></figure></div>
+    </div>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 2</span><span class="f-title">주문·운송장 조회</span><span class="pass">통과</span></div>
+        <p class="f-desc">주문번호나 운송장 번호를 보내면 AI를 거치지 않고 데이터에서 바로 찾아 카드로 보여 줍니다.</p>
+        <dl class="f">
+          <dt>입력</dt><dd>ORD-1027 / 564011230011</dd>
+          <dt>기대</dt><dd>주문 상태·상품·금액·배송 정보, 주문자 이름은 가림</dd>
+          <dt>결과</dt><dd>상품준비중, 상품 2개(상품 이미지 포함), 결제 24,500원, 주문자 "안*율". 운송장은 ORD-1001 배송완료 이력 표시. 응답 0.00초</dd>
+        </dl>
+      </div>
+      <div class="shots">
+        <figure><img src="images/f02-order.png" alt="주문 조회"><figcaption>주문 조회</figcaption></figure>
+        <figure><img src="images/f03-tracking.png" alt="운송장 조회"><figcaption>운송장 조회</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 3</span><span class="f-title">재고 확인</span><span class="pass">통과</span></div>
+        <p class="f-desc">상품이 30개라 카테고리를 먼저 고르고 상품을 고르는 2단계로 찾습니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>재고 확인 → 산책용품 → 고양이 캐리어 백팩</dd>
+          <dt>기대</dt><dd>상품 이미지, 재고 상태, 가격. 창고 위치는 표시하지 않음</dd>
+          <dt>결과</dt><dd>"4개 남음", 49,000원 표시. 창고 정보 없음. 응답 0.00초</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f04-stock.png" alt="재고 확인"><figcaption>재고 확인</figcaption></figure></div>
+    </div>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 4</span><span class="f-title">상품 추천</span><span class="pass">통과</span></div>
+        <p class="f-desc">반려동물 종류를 고르면 해당 상품과 공용 상품 중 재고가 있는 것을 먼저 추천합니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>상품 추천 → 고양이</dd>
+          <dt>기대</dt><dd>고양이·공용 상품 목록, 이미지와 가격, 더 자세한 상담 유도</dd>
+          <dt>결과</dt><dd>참치 습식 캔, 두부 모래, 스크래쳐 타워, 순면 방석 4개 추천. "나이, 크기, 고민을 알려 주시면…" 안내. 응답 0.00초</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f05-recommend.png" alt="상품 추천"><figcaption>상품 추천</figcaption></figure></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 5</span><span class="f-title">AI 답변 · 말풍선 나누기</span><span class="pass">통과</span></div>
+        <p class="f-desc">자유 질문은 AI가 상점 데이터를 근거로 답하고, 긴 답변은 읽기 쉽게 여러 말풍선으로 나눠 보냅니다.</p>
+        <dl class="f">
+          <dt>입력</dt><dd>10살 고양이가 털이 푸석하고 변이 무른데, 사료랑 영양제 추천해 주세요</dd>
+          <dt>기대</dt><dd>데이터에 있는 상품과 가격으로 답변, 말풍선 여러 개</dd>
+          <dt>결과</dt><dd>오메가3 영양제(28,900원), 고양이 유산균(26,500원), 헤어볼 사료(29,800원)로 답변. 가격 모두 데이터와 일치. 노령묘 전용 사료가 없음을 안내하고 병원 진료 권유. 말풍선 6개, 첫 글자 2.6초</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f06-ai-split.png" alt="AI 답변 말풍선 나누기"><figcaption>AI 답변 · 말풍선 6개</figcaption></figure></div>
+    </div>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 6</span><span class="f-title">주제 밖 거절</span><span class="pass">통과</span></div>
+        <p class="f-desc">쇼핑과 관계없는 질문에는 정해진 문장으로만 답합니다.</p>
+        <dl class="f">
+          <dt>입력</dt><dd>오늘 날씨 어때?</dd>
+          <dt>기대</dt><dd>날씨에 답하지 않고 쇼핑 상담만 가능하다고 안내</dd>
+          <dt>결과</dt><dd>"포근펫 쇼핑 상담만 도와드릴 수 있어요" 한 문장으로 답변. 첫 글자 0.8초</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f07-refuse.png" alt="주제 밖 거절"><figcaption>주제 밖 거절</figcaption></figure></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>기능별 상세 · 관리자와 피드백</h2>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 7</span><span class="f-title">관리자 로그인 · 데이터 편집</span><span class="pass">통과</span></div>
+        <p class="f-desc">화면에 관리자 버튼을 두지 않고, 단축키와 비밀번호로만 들어갑니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>Ctrl+Shift+A (한글 입력 상태에서 시험) → 비밀번호 입력</dd>
+          <dt>기대</dt><dd>비밀번호 창, 진입 후 상품·재고·주문·배송·대화 기록·피드백 지침 6개 탭</dd>
+          <dt>결과</dt><dd>비밀번호 창이 뜨고 입력값은 가려짐. 진입 후 6개 탭과 상품 편집 카드(이미지 미리보기 포함) 표시</dd>
+        </dl>
+        <p class="note">관리자 화면 캡처에서는 개인정보 보호를 위해 API 키 입력 상자를 가렸습니다.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="images/f08-admin-login.png" alt="관리자 로그인"><figcaption>비밀번호 창</figcaption></figure>
+        <figure><img src="images/f09-admin-data.png" alt="관리자 데이터 편집"><figcaption>상품 데이터 편집</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 8</span><span class="f-title">대화 기록 · 피드백</span><span class="pass">통과</span></div>
+        <p class="f-desc">상담 화면의 모든 대화가 저장되고, 관리자는 답변마다 평가와 피드백을 남깁니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>대화 기록 탭 → "덴탈껌 있어요?" AI 답변에 "고쳐야 해요" + 피드백 작성 → 저장</dd>
+          <dt>피드백</dt><dd>품절 상품 문의에는 첫 말풍선에서 '아쉽게도 지금은 품절이에요'라고 먼저 말하고, 대체 상품은 1개만, 마지막은 '입고되면 다시 찾아 주세요'로 끝낸다</dd>
+          <dt>결과</dt><dd>"서버에 저장됨 · 다음 AI 답변부터 지침으로 반영돼요" 표시. 답변마다 경로(AI)와 시간(3.5초)이 함께 기록됨</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f10-feedback.png" alt="대화 기록과 피드백"><figcaption>피드백 저장</figcaption></figure></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 9</span><span class="f-title">피드백 지침 (서버)</span><span class="pass">통과</span></div>
+        <p class="f-desc">피드백은 서버 파일에 저장되고, 서버가 AI 요청마다 지침으로 붙입니다. 어느 브라우저에서 열어도 같은 지침을 씁니다.</p>
+        <dl class="f">
+          <dt>방법</dt><dd>피드백 지침 탭 열기</dd>
+          <dt>기대</dt><dd>서버가 실제로 붙이는 지침 전문, 사용 중인 지침 수</dd>
+          <dt>결과</dt><dd>"서버가 AI에게 붙이는 운영자 지침 · 1개 사용 중" 표시. 지침 문장에 그때의 고객 질문과 고쳐야 했던 답변이 함께 들어감. 지침마다 켜기·끄기·수정·삭제 가능</dd>
+        </dl>
+      </div>
+      <div class="shots"><figure><img src="images/f11-guidance.png" alt="피드백 지침"><figcaption>서버 지침 미리보기</figcaption></figure></div>
+    </div>
+
+    <div class="feature">
+      <div class="f-text">
+        <div class="f-head"><span class="f-no">기능 10</span><span class="f-title">지침 반영</span><span class="pass">통과</span></div>
+        <p class="f-desc">피드백을 남긴 상품(덴탈껌)이 아닌 다른 품절 상품을 새 대화에서 물어, 지침이 반영되는지 확인했습니다.</p>
+        <dl class="f">
+          <dt>입력</dt><dd>깃털 낚싯대 장난감 있어요? (새 대화)</dd>
+          <dt>기대</dt><dd>피드백에 적은 형식대로 답변, 기록에 반영된 지침 수 표시</dd>
+          <dt>결과</dt><dd>첫 말풍선 "아쉽게도 지금은 품절이에요" → 입고 예정일 11월 19일 → 대체 상품 1개(스크래쳐 타워, 재고 3개) → 마지막 "입고되면 다시 찾아 주세요". 대화 기록에 "AI · 2.1초 · 지침 1개 반영"</dd>
+        </dl>
+        <p class="note">테스트에 쓴 피드백은 캡처 후 다시 꺼 두었습니다.</p>
+      </div>
+      <div class="shots">
+        <figure><img src="images/f12-applied.png" alt="지침이 반영된 답변"><figcaption>지침이 반영된 답변</figcaption></figure>
+        <figure><img src="images/f13-log-applied.png" alt="대화 기록의 지침 반영 표시"><figcaption>기록: 지침 1개 반영</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
